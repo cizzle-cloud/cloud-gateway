@@ -1,0 +1,20 @@
+services:
+
+  api-gateway:
+    image: api-gateway
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: api-gateway
+    environment:
+      - PORT=${PORT}
+      - FORWARDED_PORT=${FORWARDED_PORT}
+      - AUTH_ADDRESS=${AUTH_ADDRESS}
+      - AUTH_PAGE_ADDRESS=${AUTH_PAGE_ADDRESS}
+      - API_GATEWAY_ADDRESS=${API_GATEWAY_ADDRESS}
+      - AUTH_PAGE_PATH=${AUTH_PAGE_PATH}
+      - AUTH_PATH=${AUTH_PATH}
+    ports:
+      - ${FORWARDED_PORT}:${PORT}
+    volumes:
+      - .:/api-gateway
