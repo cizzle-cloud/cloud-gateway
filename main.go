@@ -25,12 +25,12 @@ func main() {
 	r.GET(
 		fmt.Sprintf("/%s/*path", cfg.AuthPagePath),
 		func(c *gin.Context) {
-			handlers.ProxyRequestHandler(c, cfg.AuthPageAddress)
+			handlers.ProxyRequestHandler(c, cfg.AuthPageURL)
 		})
 	r.GET(
 		fmt.Sprintf("/%s/*path", cfg.AuthPath),
 		func(c *gin.Context) {
-			handlers.ProxyRequestHandler(c, cfg.AuthAddress)
+			handlers.ProxyRequestHandler(c, cfg.AuthURL)
 		})
 
 	r.NoRoute(handlers.Handle404)

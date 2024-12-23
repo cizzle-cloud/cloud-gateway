@@ -8,11 +8,11 @@ import (
 )
 
 type Config struct {
-	AuthAddress       string
-	AuthPageAddress   string
-	ApiGatewayAddress string
-	AuthPagePath      string
-	AuthPath          string
+	AuthURL       string
+	AuthPageURL   string
+	ApiGatewayURL string
+	AuthPagePath  string
+	AuthPath      string
 }
 
 func loadEnvVar(key string, errorMsgs *[]string) string {
@@ -39,10 +39,10 @@ func LoadConfig() (*Config, errors.ErrorHandler) {
 	}
 
 	return &Config{
-		AuthAddress:       authAddress,
-		AuthPageAddress:   authPageAddress,
-		ApiGatewayAddress: apiGatewayAddress,
-		AuthPagePath:      authPagePath,
-		AuthPath:          authPath,
+		AuthURL:       authAddress,
+		AuthPageURL:   authPageAddress,
+		ApiGatewayURL: apiGatewayAddress,
+		AuthPagePath:  authPagePath,
+		AuthPath:      authPath,
 	}, nil
 }
