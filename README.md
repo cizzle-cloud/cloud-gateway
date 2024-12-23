@@ -40,9 +40,9 @@ The project requires the following environment variables. Create a `.env` file i
 ```bash
 PORT=<The port number on which the application will run inside the container>
 FORWARDED_PORT=<The port on the host to which the container port is forwarded>
-AUTH_ADDRESS=<The base URL for the authentication service>
-AUTH_PAGE_ADDRESS=<The base URL for the authentication page>
-API_GATEWAY_ADDRESS=<The base URL of the API Gateway that routes requests to microservices>
+AUTH_URL=<The base URL for the authentication service>
+AUTH_PAGE_URL=<The base URL for the authentication page>
+API_GATEWAY_URL=<The base URL of the API Gateway that routes requests to microservices>
 AUTH_PAGE_PATH=<The path to the authentication page>
 AUTH_PATH=<The path to the authentication service>
 ```
