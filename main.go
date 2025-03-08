@@ -3,6 +3,7 @@ package main
 import (
 	"api_gateway/config"
 	"api_gateway/handlers"
+	"api_gateway/middleware"
 	"fmt"
 	"net/http"
 
@@ -24,11 +25,14 @@ func main() {
 		})
 	r.GET(
 		fmt.Sprintf("/%s/*path", cfg.AuthPagePath),
+		middleware.NoCacheMiddleware(),
+		middleware.AuthMiddleware(cfg),
 		func(c *gin.Context) {
 			handlers.ProxyRequestHandler(c, cfg.AuthPageURL)
 		})
 	r.GET(
 		fmt.Sprintf("/%s/*path", cfg.AuthPath),
+		middleware.AuthMiddleware(cfg),
 		func(c *gin.Context) {
 			handlers.ProxyRequestHandler(c, cfg.AuthURL)
 		})

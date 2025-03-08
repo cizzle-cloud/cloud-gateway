@@ -11,6 +11,8 @@ import (
 )
 
 func ProxyRequestHandler(c *gin.Context, target string) {
+	// TODO: move targetURL outside from ProxyRequestHandler and
+	// handle error
 	targetURL, _ := url.Parse(target)
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 
@@ -30,4 +32,3 @@ func ProxyRequestHandler(c *gin.Context, target string) {
 func Handle404(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{"message": "Page Not Found"})
 }
-
