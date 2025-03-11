@@ -1,23 +1,24 @@
 {
     "middleware_groups": {
-        "auth_group": ["AuthMiddleware"],
-        "ratelimit_group": ["AuthMiddleware", "RateLimitMiddleware"],
-        "all_group": ["AuthMiddleware", "NoCacheMiddleware"]
+        "auth_group": ["auth_middleware"],
+        "ratelimit_group": ["auth_middleware", "ratelimit_middleware"],
+        "all_group": ["auth_middleware", "nocache_middleware"]
     },
     "routes": [
       {
         "prefix": "/auth",
-        "middleware": ["AuthMiddleware"],
+        "middleware": ["auth_middleware"],
         "paths": [
-          {
-            "method": "GET",
-            "path": "/login"
-          },
           {
             "method": "GET",
             "path": "/logout",
             "proxy_target": "http://my-service/users"
-        }
+          },
+          {
+            "method": "GET",
+            "path": "/signin",
+            "proxy_target": "http://my-service/users"
+          }
         ]
       },
       {
@@ -27,4 +28,4 @@
         "proxy_target": "http://my-service/api"
       }
     ]
-  }
+}
