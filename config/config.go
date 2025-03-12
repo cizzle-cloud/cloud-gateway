@@ -5,58 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
-
-type Config struct {
-	AuthURL       string
-	AuthPageURL   string
-	ApiGatewayURL string
-	AuthPagePath  string
-	AuthPath      string
-}
-
-func loadEnvVar(key string, errorMsgs *[]string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		*errorMsgs = append(*errorMsgs, fmt.Sprintf("%s is not set", key))
-	}
-	return value
-}
-
-func LoadConfig() (*Config, errors.ErrorHandler) {
-	var errorMsgs []string
-
-	authAddress := loadEnvVar("AUTH_ADDRESS", &errorMsgs)
-	authPageAddress := loadEnvVar("AUTH_PAGE_ADDRESS", &errorMsgs)
-	apiGatewayAddress := loadEnvVar("API_GATEWAY_ADDRESS", &errorMsgs)
-	authPagePath := loadEnvVar("AUTH_PAGE_PATH", &errorMsgs)
-	authPath := loadEnvVar("AUTH_PATH", &errorMsgs)
-
-	if len(errorMsgs) > 0 {
-		return nil, &errors.LoadConfigError{
-			Message: "error while loading Config:\n" + strings.Join(errorMsgs, "\n"),
-		}
-	}
-
-	return &Config{
-		AuthURL:       authAddress,
-		AuthPageURL:   authPageAddress,
-		ApiGatewayURL: apiGatewayAddress,
-		AuthPagePath:  authPagePath,
-		AuthPath:      authPath,
-	}, nil
-}
 
 type ConfigMiddlewareGroup []string
 
 // Path defines an individual API route (used in JSON/YAML)
 type ConfigPath struct {
-	Method      string `json:"method" yaml:"method"`
-	Path        string `json:"path" yaml:"path"`
-	ProxyTarget string `json:"proxy_target,omitempty" yaml:"proxy_target,omitempty"`
+	Method         string `json:"method" yaml:"method"`
+	Path           string `json:"path" yaml:"path"`
+	ProxyTarget    string `json:"proxy_target,omitempty" yaml:"proxy_target,omitempty"`
+	RedirectTarget string `json:"redirect_target,omitempty" yaml:"redirect_target,omitempty"`
 }
 
 // ConfigRoute represents a route or proxy group from config
@@ -65,25 +25,33 @@ type ConfigRoute struct {
 	Method          string       `json:"method" yaml:"method"`
 	Middleware      []string     `json:"middleware,omitempty" yaml:"middleware,omitempty"`
 	MiddlewareGroup string       `json:"middleware_group,omitempty" yaml:"middleware_group,omitempty"`
-	ProxyTarget     string       `json:"proxy_target,omitempty" yaml:"proxy_target"`
+	ProxyTarget     string       `json:"proxy_target,omitempty" yaml:"proxy_target,omitempty"`
+	RedirectTarget  string       `json:"redirect_target,omitempty" yaml:"redirect_target,omitempty"`
 	Paths           []ConfigPath `json:"paths,omitempty" yaml:"paths,omitempty"`
 }
 
-// Config represents the full JSON/YAML structure
-type InputConfig struct {
-	MiddlewareGroups map[string]ConfigMiddlewareGroup `json:"middleware_groups" yaml:"middleware_groups"`
-	Routes           []ConfigRoute                    `json:"routes" yaml:"routes"`
+type Env struct {
+	Port                    string `json:"PORT" yaml:"PORT"`
+	ValidateAuthURL         string `json:"VALIDATE_AUTH_URL" yaml:"VALIDATE_AUTH_URL"`
+	RedirectUnauthorizedURL string `json:"REDIRECT_UNAUTHORIZED_URL" yaml:"REDIRECT_UNAUTHORIZED_URL"`
 }
 
-func LoadInputConfig(filepath string, fileType string) (*InputConfig, errors.ErrorHandler) {
+// Config represents the full JSON/YAML structure
+type Config struct {
+	MiddlewareGroups map[string]ConfigMiddlewareGroup `json:"middleware_groups" yaml:"middleware_groups"`
+	Routes           []ConfigRoute                    `json:"routes" yaml:"routes"`
+	Env              Env                              `json:"env" yaml:"env"`
+}
+
+func LoadConfig(filepath string, fileType string) (Config, errors.ErrorHandler) {
 	file, err := os.ReadFile(filepath)
 	if err != nil {
-		return nil, &errors.LoadConfigError{
+		return Config{}, &errors.LoadConfigError{
 			Message: fmt.Sprintf("error while reading config file: %v", err),
 		}
 	}
 
-	var cfg InputConfig
+	var cfg Config
 	switch fileType {
 	case "yaml":
 		err = yaml.Unmarshal(file, &cfg)
@@ -94,10 +62,10 @@ func LoadInputConfig(filepath string, fileType string) (*InputConfig, errors.Err
 	}
 
 	if err != nil {
-		return nil, &errors.LoadConfigError{
+		return Config{}, &errors.LoadConfigError{
 			Message: fmt.Sprintf("error while unmarshaling config file: %v", err),
 		}
 	}
 
-	return &cfg, nil
+	return cfg, nil
 }
