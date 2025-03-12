@@ -3,13 +3,14 @@ package main
 import (
 	"api_gateway/config"
 	"api_gateway/route"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 
-	inputCfg, err := config.LoadInputConfig("config_template.yaml", "yaml")
+	cfg, err := config.LoadConfig("config_template.yaml", "yaml")
 	if err != nil {
 		err.Handle()
 		return
@@ -17,7 +18,7 @@ func main() {
 
 	r := gin.Default()
 	rr := &route.RouteRegistry{}
-	rr.FromConfig(inputCfg)
+	rr.FromConfig(cfg)
 	rr.RegisterRoutes(r)
-	r.Run()
+	r.Run(fmt.Sprintf(":%s", cfg.Env.Port))
 }
