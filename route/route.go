@@ -18,24 +18,31 @@ var MiddlewareRegistry = map[string]gin.HandlerFunc{
 }
 
 type Route struct {
-	Method      string
-	Prefix      string
-	Middleware  []gin.HandlerFunc
-	ProxyTarget string
+	Method     string
+	Prefix     string
+	Middleware []gin.HandlerFunc
 	// optional fields
-	FixedPath string
+	ProxyTarget    string
+	RedirectTarget string
+	FixedPath      string
 }
 
-// TODO: Investigate if we need pointer to Route or Route
-// struct (memory in use vs escape to heap allocation)
-
-func NewRoute(method, prefix string, middleware []gin.HandlerFunc, proxyTarget string) Route {
+func NewRoute(method, prefix string, middleware []gin.HandlerFunc) Route {
 	return Route{
-		Method:      method,
-		Prefix:      prefix,
-		Middleware:  middleware,
-		ProxyTarget: proxyTarget,
+		Method:     method,
+		Prefix:     prefix,
+		Middleware: middleware,
 	}
+}
+
+func (r Route) WithProxy(proxyTarget string) Route {
+	r.ProxyTarget = proxyTarget
+	return r
+}
+
+func (r Route) WithRedirect(redirectTarget string) Route {
+	r.RedirectTarget = redirectTarget
+	return r
 }
 
 func (r Route) WithFixedPath(fixedPath string) Route {
@@ -51,10 +58,16 @@ type RouteRegistry struct {
 	Routes []Route
 }
 
-func (rr *RouteRegistry) FromConfig(cfg *config.InputConfig) {
+func (rr *RouteRegistry) FromConfig(cfg config.Config) {
 	var routes []Route
 
 	for _, r := range cfg.Routes {
+
+		if r.ProxyTarget != "" && r.RedirectTarget != "" {
+			log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Route will be skipped.")
+			continue
+		}
+
 		var resolvedMiddleware []gin.HandlerFunc
 		// TODO: Where would you put a sanity check for the config.json/yaml?
 		// Resolve middleware (either direct list or from group)
@@ -76,19 +89,37 @@ func (rr *RouteRegistry) FromConfig(cfg *config.InputConfig) {
 
 		// If the entire prefix is a proxy route (no specific paths)
 		if r.ProxyTarget != "" {
-			route := NewRoute(r.Method, r.Prefix+"/*path", resolvedMiddleware, r.ProxyTarget)
-			log.Println("ROUTE FIXED PATH", route.FixedPath)
+			route := NewRoute(r.Method, r.Prefix+"/*path", resolvedMiddleware).WithProxy(r.ProxyTarget)
+			routes = append(routes, route)
+			continue
+		}
 
+		if r.RedirectTarget != "" {
+			route := NewRoute(r.Method, r.Prefix+"/*path", resolvedMiddleware).WithRedirect(r.RedirectTarget)
 			routes = append(routes, route)
 			continue
 		}
 
 		// Register individual paths under the prefix
 		for _, path := range r.Paths {
+
+			if path.ProxyTarget != "" && path.RedirectTarget != "" {
+				log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Route will be skipped.")
+				continue
+			}
+
 			fixedPath := path.Path
-			route := NewRoute(path.Method, r.Prefix+fixedPath, resolvedMiddleware, path.ProxyTarget).
+			route := NewRoute(path.Method, r.Prefix+fixedPath, resolvedMiddleware).
 				WithFixedPath(fixedPath)
-			log.Println("ROUTE", route.FixedPath)
+
+			if path.ProxyTarget != "" {
+				route = route.WithProxy(path.ProxyTarget)
+			}
+
+			if path.RedirectTarget != "" {
+				route = route.WithRedirect(path.RedirectTarget)
+			}
+
 			routes = append(routes, route)
 		}
 	}
@@ -98,9 +129,17 @@ func (rr *RouteRegistry) FromConfig(cfg *config.InputConfig) {
 
 func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 	for _, route := range rr.Routes {
-		handlers := append(route.Middleware, func(c *gin.Context) {
-			handlers.ProxyRequestHandler(c, route.ProxyTarget, route.FixedPath)
-		})
+		var handler gin.HandlerFunc
+		if route.ProxyTarget != "" {
+			handler = func(c *gin.Context) {
+				handlers.ProxyRequestHandler(c, route.ProxyTarget, route.FixedPath)
+			}
+		} else if route.RedirectTarget != "" {
+			handler = func(c *gin.Context) {
+				handlers.RedirectHandler(c, route.RedirectTarget)
+			}
+		}
+		handlers := append(route.Middleware, handler)
 		r.Handle(route.Method, route.Prefix, handlers...)
 	}
 }
