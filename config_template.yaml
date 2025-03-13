@@ -1,0 +1,40 @@
+# middleware_groups:
+#   auth_group:
+#     - auth_middleware
+#   ratelimit_group:
+#     - auth_middleware
+#     - ratelimit_middleware
+#   all_group:
+#     - auth_middleware
+#     - nocache_middleware
+
+routes:
+  - prefix: "/dummy"
+    # middleware:
+    #   - auth_middleware
+    paths:
+      - method: "GET"
+        path: "/docs/todos"
+        proxy_target: "https://dummyjson.com"
+
+  - prefix: "/dummy2"
+    # middleware_group: "ratelimit_group"
+    method: "GET"
+    proxy_target: "https://dummyjson.com"
+
+  - prefix: "/redirect-dummy"
+    method: "GET"
+    redirect_target: "https://dummyjson.com/docs/todos"
+
+  - prefix: "/redirect-dummy-path"
+    paths:
+      - method: "GET"
+        path: "/docs"
+        redirect_target: "https://dummyjson.com/docs"
+      - method: "GET"
+        path: "/docs/todos"
+        redirect_target: "https://dummyjson.com/docs/todos"
+env:
+  PORT: "8000"
+  VALIDATE_AUTH_URL: "test1"
+  REDIRECT_UNAUTHORIZED_URL: "test2"

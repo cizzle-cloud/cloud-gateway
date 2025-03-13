@@ -2,38 +2,23 @@ package main
 
 import (
 	"api_gateway/config"
-	"api_gateway/handlers"
+	"api_gateway/route"
 	"fmt"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
+
+	cfg, err := config.LoadConfig("config_template.yaml", "yaml")
 	if err != nil {
 		err.Handle()
 		return
 	}
 
 	r := gin.Default()
-	r.GET(
-		"/",
-		func(c *gin.Context) {
-			c.Redirect(http.StatusFound, cfg.AuthPagePath)
-		})
-	r.GET(
-		fmt.Sprintf("/%s/*path", cfg.AuthPagePath),
-		func(c *gin.Context) {
-			handlers.ProxyRequestHandler(c, cfg.AuthPageURL)
-		})
-	r.GET(
-		fmt.Sprintf("/%s/*path", cfg.AuthPath),
-		func(c *gin.Context) {
-			handlers.ProxyRequestHandler(c, cfg.AuthURL)
-		})
-
-	r.NoRoute(handlers.Handle404)
-
-	r.Run()
+	rr := &route.RouteRegistry{}
+	rr.FromConfig(cfg)
+	rr.RegisterRoutes(r)
+	r.Run(fmt.Sprintf(":%s", cfg.Env.Port))
 }

@@ -1,4 +1,4 @@
-FROM golang:1.23.2
+FROM golang:1.23.2 AS build
 
 WORKDIR /api-gateway
 
@@ -7,6 +7,20 @@ RUN go mod download && go mod verify
 
 COPY . ./
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /main
+# Build the Go binary
+RUN CGO_ENABLED=0 GOOS=linux go build -o main
 
-CMD ["/main"]
+FROM alpine:latest
+
+WORKDIR /api-gateway
+
+# Copy the binary from the build stage
+COPY --from=build /api-gateway/main /api-gateway/main
+
+# Add a non-root user and group to the container
+RUN addgroup -S nonroot && adduser -S nonroot -G nonroot
+
+# Switch to the non-root user
+USER nonroot
+
+CMD ["/api-gateway/main"]
