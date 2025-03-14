@@ -50,42 +50,76 @@ func (r Route) WithFixedPath(fixedPath string) Route {
 	return r
 }
 
+type DomainRoute struct {
+	Domain      string
+	ProxyTarget string
+	Middleware  []gin.HandlerFunc
+}
+
+func NewDomainRoute(domain, proxyTarget string, middleware []gin.HandlerFunc) DomainRoute {
+	return DomainRoute{
+		Domain:      domain,
+		ProxyTarget: proxyTarget,
+		Middleware:  middleware,
+	}
+}
+
 type MiddlewareGroup struct {
 	Middleware []gin.HandlerFunc
 }
 
 type RouteRegistry struct {
-	Routes []Route
+	Routes       []Route
+	DomainRoutes []DomainRoute
 }
 
 func (rr *RouteRegistry) FromConfig(cfg config.Config) {
-	var routes []Route
+	rr.buildRoutes(cfg)
+	rr.buildDomainRoutes(cfg)
+}
 
-	for _, r := range cfg.Routes {
-
-		if r.ProxyTarget != "" && r.RedirectTarget != "" {
-			log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Route will be skipped.")
-			continue
-		}
-
-		var resolvedMiddleware []gin.HandlerFunc
-		// TODO: Where would you put a sanity check for the config.json/yaml?
-		// Resolve middleware (either direct list or from group)
-		if r.MiddlewareGroup != "" {
-			if groupMiddleware, exists := cfg.MiddlewareGroups[r.MiddlewareGroup]; exists {
-				for _, mw := range groupMiddleware {
-					if handler, ok := MiddlewareRegistry[mw]; ok {
-						resolvedMiddleware = append(resolvedMiddleware, handler)
-					}
-				}
-			}
-		} else {
-			for _, mw := range r.Middleware {
+func resolveMiddlewareGroup(middlewareGroup string, middlewareGroups map[string]config.ConfigMiddlewareGroup) []gin.HandlerFunc {
+	var resolvedMiddleware []gin.HandlerFunc
+	if middlewareGroup != "" {
+		if mws, exists := middlewareGroups[middlewareGroup]; exists {
+			for _, mw := range mws {
 				if handler, ok := MiddlewareRegistry[mw]; ok {
 					resolvedMiddleware = append(resolvedMiddleware, handler)
 				}
 			}
 		}
+	}
+	return resolvedMiddleware
+}
+
+func resolveMiddleware(middleware []string) []gin.HandlerFunc {
+	var resolvedMiddleware []gin.HandlerFunc
+	for _, mw := range middleware {
+		if handler, ok := MiddlewareRegistry[mw]; ok {
+			resolvedMiddleware = append(resolvedMiddleware, handler)
+		}
+	}
+	return resolvedMiddleware
+}
+
+func (rr *RouteRegistry) buildRoutes(cfg config.Config) {
+	var routes []Route
+
+	for _, r := range cfg.Routes {
+
+		if r.ProxyTarget != "" && r.RedirectTarget != "" {
+			log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Program will exit.")
+		}
+
+		var resolvedMiddleware []gin.HandlerFunc
+		if r.MiddlewareGroup != "" {
+			resolvedMiddleware = resolveMiddlewareGroup(r.MiddlewareGroup, cfg.MiddlewareGroups)
+
+		} else {
+			resolvedMiddleware = resolveMiddleware(r.Middleware)
+		}
+
+		log.Println("[INFO] Resolved middleware", r.Prefix, resolvedMiddleware)
 
 		// If the entire prefix is a proxy route (no specific paths)
 		if r.ProxyTarget != "" {
@@ -104,8 +138,7 @@ func (rr *RouteRegistry) FromConfig(cfg config.Config) {
 		for _, path := range r.Paths {
 
 			if path.ProxyTarget != "" && path.RedirectTarget != "" {
-				log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Route will be skipped.")
-				continue
+				log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Program will exit.")
 			}
 
 			fixedPath := path.Path
@@ -127,6 +160,29 @@ func (rr *RouteRegistry) FromConfig(cfg config.Config) {
 	rr.Routes = routes
 }
 
+func (rr *RouteRegistry) buildDomainRoutes(cfg config.Config) {
+	var domainRoutes []DomainRoute
+
+	for _, r := range cfg.DomainRoutes {
+		if r.ProxyTarget == "" || r.Domain == "" {
+			log.Fatal("[ERROR] Domain or ProxyTarget is missing. Program will exit.")
+		}
+
+		var resolvedMiddleware []gin.HandlerFunc
+		if r.MiddlewareGroup != "" {
+			resolvedMiddleware = resolveMiddlewareGroup(r.MiddlewareGroup, cfg.MiddlewareGroups)
+
+		} else {
+			resolvedMiddleware = resolveMiddleware(r.Middleware)
+		}
+		log.Println("[INFO] Resolved middleware", r.Domain, resolvedMiddleware)
+		domainRoute := NewDomainRoute(r.Domain, r.ProxyTarget, resolvedMiddleware)
+		domainRoutes = append(domainRoutes, domainRoute)
+	}
+
+	rr.DomainRoutes = domainRoutes
+}
+
 func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 	for _, route := range rr.Routes {
 		var handler gin.HandlerFunc
@@ -141,5 +197,19 @@ func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 		}
 		handlers := append(route.Middleware, handler)
 		r.Handle(route.Method, route.Prefix, handlers...)
+	}
+}
+
+func (rr *RouteRegistry) RegisterDomainRoutes(r *gin.Engine) {
+	for _, route := range rr.DomainRoutes {
+		log.Println("[INFO] handlers route", route.Domain)
+		handler := func(c *gin.Context) {
+			handlers.DomainProxyHandler(c, route.Domain, route.ProxyTarget)
+		}
+
+		handlers := append(route.Middleware, handler)
+		log.Println("[INFO] registering route", route.Domain)
+		log.Println("[INFO] registering route", route.Domain, handlers)
+		r.NoRoute(handlers...)
 	}
 }

@@ -20,5 +20,6 @@ func main() {
 	rr := &route.RouteRegistry{}
 	rr.FromConfig(cfg)
 	rr.RegisterRoutes(r)
-	r.Run(fmt.Sprintf(":%s", cfg.Env.Port))
+	rr.RegisterDomainRoutes(r)
+	r.Run(fmt.Sprintf("127.0.0.1:%s", cfg.Env.Port))
 }

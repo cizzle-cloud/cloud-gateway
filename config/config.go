@@ -11,7 +11,6 @@ import (
 
 type ConfigMiddlewareGroup []string
 
-// Path defines an individual API route (used in JSON/YAML)
 type ConfigPath struct {
 	Method         string `json:"method" yaml:"method"`
 	Path           string `json:"path" yaml:"path"`
@@ -19,7 +18,6 @@ type ConfigPath struct {
 	RedirectTarget string `json:"redirect_target,omitempty" yaml:"redirect_target,omitempty"`
 }
 
-// ConfigRoute represents a route or proxy group from config
 type ConfigRoute struct {
 	Prefix          string       `json:"prefix" yaml:"prefix"`
 	Method          string       `json:"method" yaml:"method"`
@@ -30,16 +28,23 @@ type ConfigRoute struct {
 	Paths           []ConfigPath `json:"paths,omitempty" yaml:"paths,omitempty"`
 }
 
+type ConfigDomainRoute struct {
+	Domain          string   `json:"domain" yaml:"domain"`
+	ProxyTarget     string   `json:"proxy_target" yaml:"proxy_target"`
+	Middleware      []string `json:"middleware,omitempty" yaml:"middleware,omitempty"`
+	MiddlewareGroup string   `json:"middleware_group,omitempty" yaml:"middleware_group,omitempty"`
+}
+
 type Env struct {
 	Port                    string `json:"PORT" yaml:"PORT"`
 	ValidateAuthURL         string `json:"VALIDATE_AUTH_URL" yaml:"VALIDATE_AUTH_URL"`
 	RedirectUnauthorizedURL string `json:"REDIRECT_UNAUTHORIZED_URL" yaml:"REDIRECT_UNAUTHORIZED_URL"`
 }
 
-// Config represents the full JSON/YAML structure
 type Config struct {
 	MiddlewareGroups map[string]ConfigMiddlewareGroup `json:"middleware_groups" yaml:"middleware_groups"`
 	Routes           []ConfigRoute                    `json:"routes" yaml:"routes"`
+	DomainRoutes     []ConfigDomainRoute              `json:"domain_routes" yaml:"domain_routes"`
 	Env              Env                              `json:"env" yaml:"env"`
 }
 
