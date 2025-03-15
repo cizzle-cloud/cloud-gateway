@@ -2,7 +2,7 @@ package main
 
 import (
 	"api_gateway/config"
-	"api_gateway/route"
+	"api_gateway/registry"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +16,7 @@ func main() {
 	}
 
 	r := gin.Default()
-	rr := &route.RouteRegistry{}
+	rr := &registry.RouteRegistry{}
 	rr.FromConfig(cfg)
 	rr.RegisterRoutes(r)
 	rr.RegisterDomainRoutes(r)
