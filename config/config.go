@@ -50,18 +50,18 @@ type Config struct {
 	Env              Env                              `json:"env" yaml:"env"`
 }
 
-// func loadEnvVar(key string, errorMsgs *[]string) string {
-// 	value := os.Getenv(key)
-// 	if value == "" {
-// 		*errorMsgs = append(*errorMsgs, fmt.Sprintf("%s is not set", key))
-// 	}
-// 	return value
-// }
+func loadEnvVar(key string, errorMsgs *[]string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		*errorMsgs = append(*errorMsgs, fmt.Sprintf("%s is not set", key))
+	}
+	return value
+}
 
 func LoadConfig() (Config, errors.ErrorHandler) {
 	var errorMsgs []string
-	filepath := "config_template.yaml" //loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
-	fileType := "yaml"                 //loadEnvVar("CONFIG_FILETYPE", &errorMsgs)
+	filepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs) //"config_template.yaml"
+	fileType := loadEnvVar("CONFIG_FILETYPE", &errorMsgs) //"yaml"
 
 	if len(errorMsgs) > 0 {
 		return Config{}, &errors.LoadConfigError{
