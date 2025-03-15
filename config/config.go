@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -48,7 +49,25 @@ type Config struct {
 	Env              Env                              `json:"env" yaml:"env"`
 }
 
-func LoadConfig(filepath string, fileType string) (Config, errors.ErrorHandler) {
+func loadEnvVar(key string, errorMsgs *[]string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		*errorMsgs = append(*errorMsgs, fmt.Sprintf("%s is not set", key))
+	}
+	return value
+}
+
+func LoadConfig() (Config, errors.ErrorHandler) {
+	var errorMsgs []string
+	filepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
+	fileType := loadEnvVar("CONFIG_FILETYPE", &errorMsgs)
+
+	if len(errorMsgs) > 0 {
+		return Config{}, &errors.LoadConfigError{
+			Message: "error while loading Env Vars:\n" + strings.Join(errorMsgs, "\n"),
+		}
+	}
+
 	file, err := os.ReadFile(filepath)
 	if err != nil {
 		return Config{}, &errors.LoadConfigError{

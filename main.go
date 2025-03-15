@@ -9,8 +9,7 @@ import (
 )
 
 func main() {
-
-	cfg, err := config.LoadConfig("config_template.yaml", "yaml")
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		err.Handle()
 		return
