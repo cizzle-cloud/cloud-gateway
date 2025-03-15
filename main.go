@@ -20,5 +20,5 @@ func main() {
 	rr.FromConfig(cfg)
 	rr.RegisterRoutes(r)
 	rr.RegisterDomainRoutes(r)
-	r.Run(fmt.Sprintf("127.0.0.1:%s", cfg.Env.Port))
+	r.Run(fmt.Sprintf("%s:%s", cfg.Env.Host, cfg.Env.Port))
 }

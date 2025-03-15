@@ -37,6 +37,7 @@ type ConfigDomainRoute struct {
 }
 
 type Env struct {
+	Host                    string `json:"HOST" yaml:"HOST"`
 	Port                    string `json:"PORT" yaml:"PORT"`
 	ValidateAuthURL         string `json:"VALIDATE_AUTH_URL" yaml:"VALIDATE_AUTH_URL"`
 	RedirectUnauthorizedURL string `json:"REDIRECT_UNAUTHORIZED_URL" yaml:"REDIRECT_UNAUTHORIZED_URL"`
@@ -49,18 +50,18 @@ type Config struct {
 	Env              Env                              `json:"env" yaml:"env"`
 }
 
-func loadEnvVar(key string, errorMsgs *[]string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		*errorMsgs = append(*errorMsgs, fmt.Sprintf("%s is not set", key))
-	}
-	return value
-}
+// func loadEnvVar(key string, errorMsgs *[]string) string {
+// 	value := os.Getenv(key)
+// 	if value == "" {
+// 		*errorMsgs = append(*errorMsgs, fmt.Sprintf("%s is not set", key))
+// 	}
+// 	return value
+// }
 
 func LoadConfig() (Config, errors.ErrorHandler) {
 	var errorMsgs []string
-	filepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
-	fileType := loadEnvVar("CONFIG_FILETYPE", &errorMsgs)
+	filepath := "config_template.yaml" //loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
+	fileType := "yaml"                 //loadEnvVar("CONFIG_FILETYPE", &errorMsgs)
 
 	if len(errorMsgs) > 0 {
 		return Config{}, &errors.LoadConfigError{
