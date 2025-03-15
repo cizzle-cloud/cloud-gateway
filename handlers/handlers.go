@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -54,7 +53,7 @@ func RedirectHandler(c *gin.Context, url string) {
 	c.Redirect(http.StatusFound, url)
 }
 
-func forwardRequest(c *gin.Context, target string) {
+func ForwardRequest(c *gin.Context, target string) {
 	targetURL, err := url.Parse(target)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid proxy target"})
@@ -87,13 +86,13 @@ func forwardRequest(c *gin.Context, target string) {
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
 
-func DomainProxyHandler(c *gin.Context, domain, target string) {
-	host := c.Request.Host
-	log.Printf("[ DOMAIN PROXY ] Host → %s, Domain → %s", host, domain)
-	if strings.Split(c.Request.Host, ":")[0] == domain {
-		forwardRequest(c, target)
-	} else {
-		c.JSON(http.StatusNotFound, gin.H{"error": "no backend found for domain"})
-	}
+// func DomainProxyHandler(c *gin.Context, domain, target string) {
+// 	host := c.Request.Host
+// 	log.Printf("[ DOMAIN PROXY ] Host → %s, Domain → %s", host, domain)
+// 	if strings.Split(c.Request.Host, ":")[0] == domain {
+// 		forwardRequest(c, target)
+// 	} else {
+// 		c.JSON(http.StatusNotFound, gin.H{"error": "no backend found for domain"})
+// 	}
 
-}
+// }

@@ -5,6 +5,8 @@ import (
 	"api_gateway/handlers"
 	"api_gateway/middleware"
 	"log"
+	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -200,16 +202,34 @@ func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 	}
 }
 
-func (rr *RouteRegistry) RegisterDomainRoutes(r *gin.Engine) {
-	for _, route := range rr.DomainRoutes {
-		log.Println("[INFO] handlers route", route.Domain)
-		handler := func(c *gin.Context) {
-			handlers.DomainProxyHandler(c, route.Domain, route.ProxyTarget)
+func DomainProxyHandler(c *gin.Context, routes []DomainRoute) {
+	host := c.Request.Host
+	targetDomain := strings.Split(c.Request.Host, ":")[0]
+	// TODO: Apply also middlware
+	for _, r := range routes {
+		if r.Domain == targetDomain {
+			log.Printf("[ DOMAIN PROXY ] Host → %s, Domain → %s", host, r.Domain)
+			handlers.ForwardRequest(c, r.ProxyTarget)
+			return
 		}
-
-		handlers := append(route.Middleware, handler)
-		log.Println("[INFO] registering route", route.Domain)
-		log.Println("[INFO] registering route", route.Domain, handlers)
-		r.NoRoute(handlers...)
 	}
+
+	c.JSON(http.StatusNotFound, gin.H{"error": "no backend found for domain"})
 }
+
+func (rr *RouteRegistry) RegisterDomainRoutes(r *gin.Engine) {
+	r.NoRoute(func(c *gin.Context) {
+		DomainProxyHandler(c, rr.DomainRoutes)
+	})
+}
+
+// for _, route := range rr.DomainRoutes {
+// 	log.Println("[INFO] handlers route", route.Domain)
+// 	handler := func(c *gin.Context) {
+// 		handlers.DomainProxyHandler(c, route.Domain, route.ProxyTarget)
+// 	}
+
+// 	handlers := append(route.Middleware, handler)
+// 	log.Println("[INFO] registering route", route.Domain)
+// 	log.Println("[INFO] registering route", route.Domain, handlers)
+// 	r.Use(handlers...)
