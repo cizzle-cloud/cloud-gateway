@@ -15,11 +15,19 @@ type RouteRegistry struct {
 }
 
 func (rr *RouteRegistry) FromConfig(cfg config.Config) {
-	rr.buildRoutes(cfg)
-	rr.buildDomainRoutes(cfg)
+	rr.parseRateLimiters(cfg)
+	rr.parseRoutes(cfg)
+	rr.parseDomainRoutes(cfg)
 }
 
-func resolveMiddlewareGroup(middlewareGroup string, middlewareGroups map[string]config.ConfigMiddlewareGroup) []gin.HandlerFunc {
+func (rr *RouteRegistry) parseRateLimiters(cfg config.Config) {
+	log.Println("RATE LIMITERS", cfg.RateLimiters)
+	for _, ratelimiter := range cfg.RateLimiters {
+		log.Println(ratelimiter)
+	}
+}
+
+func resolveMiddlewareGroup(middlewareGroup string, middlewareGroups map[string]config.MiddlewareGroupConfig) []gin.HandlerFunc {
 	var resolvedMiddleware []gin.HandlerFunc
 	if middlewareGroup != "" {
 		if mws, exists := middlewareGroups[middlewareGroup]; exists {
@@ -43,7 +51,7 @@ func resolveMiddleware(middleware []string) []gin.HandlerFunc {
 	return resolvedMiddleware
 }
 
-func (rr *RouteRegistry) buildRoutes(cfg config.Config) {
+func (rr *RouteRegistry) parseRoutes(cfg config.Config) {
 	var routes []route.Route
 
 	for _, r := range cfg.Routes {
@@ -101,7 +109,7 @@ func (rr *RouteRegistry) buildRoutes(cfg config.Config) {
 	rr.Routes = routes
 }
 
-func (rr *RouteRegistry) buildDomainRoutes(cfg config.Config) {
+func (rr *RouteRegistry) parseDomainRoutes(cfg config.Config) {
 	var domainRoutes []route.DomainRoute
 
 	for _, r := range cfg.DomainRoutes {

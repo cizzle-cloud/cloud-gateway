@@ -10,33 +10,49 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type ConfigMiddlewareGroup []string
+type MiddlewareGroupConfig []string
 
-type ConfigPath struct {
+type RateLimitConfig struct {
+	Algorithm string                 `json:"algorithm" yaml:"algorithm"`
+	RawConfig map[string]interface{} `json:",inline" yaml:",inline"`
+}
+
+type FixedWindowCounterConfig struct {
+	Limit      int `json:"limit" yaml:"limit"`
+	WindowSize int `json:"window_size" yaml:"window_size"`
+}
+
+type TokenBucketConfig struct {
+	Capacity       int `json:"capacity" yaml:"capacity"`
+	RefillTokens   int `json:"refill_tokens" yaml:"refill_tokens"`
+	RefillInterval int `json:"refill_interval" yaml:"refill_interval"`
+}
+
+type PathConfig struct {
 	Method         string `json:"method" yaml:"method"`
 	Path           string `json:"path" yaml:"path"`
 	ProxyTarget    string `json:"proxy_target,omitempty" yaml:"proxy_target,omitempty"`
 	RedirectTarget string `json:"redirect_target,omitempty" yaml:"redirect_target,omitempty"`
 }
 
-type ConfigRoute struct {
+type RouteConfig struct {
 	Prefix          string       `json:"prefix" yaml:"prefix"`
 	Method          string       `json:"method" yaml:"method"`
 	Middleware      []string     `json:"middleware,omitempty" yaml:"middleware,omitempty"`
 	MiddlewareGroup string       `json:"middleware_group,omitempty" yaml:"middleware_group,omitempty"`
 	ProxyTarget     string       `json:"proxy_target,omitempty" yaml:"proxy_target,omitempty"`
 	RedirectTarget  string       `json:"redirect_target,omitempty" yaml:"redirect_target,omitempty"`
-	Paths           []ConfigPath `json:"paths,omitempty" yaml:"paths,omitempty"`
+	Paths           []PathConfig `json:"paths,omitempty" yaml:"paths,omitempty"`
 }
 
-type ConfigDomainRoute struct {
+type DomainRouteConfig struct {
 	Domain          string   `json:"domain" yaml:"domain"`
 	ProxyTarget     string   `json:"proxy_target" yaml:"proxy_target"`
 	Middleware      []string `json:"middleware,omitempty" yaml:"middleware,omitempty"`
 	MiddlewareGroup string   `json:"middleware_group,omitempty" yaml:"middleware_group,omitempty"`
 }
 
-type Env struct {
+type EnvConfig struct {
 	Host                    string `json:"HOST" yaml:"HOST"`
 	Port                    string `json:"PORT" yaml:"PORT"`
 	ValidateAuthURL         string `json:"VALIDATE_AUTH_URL" yaml:"VALIDATE_AUTH_URL"`
@@ -44,10 +60,11 @@ type Env struct {
 }
 
 type Config struct {
-	MiddlewareGroups map[string]ConfigMiddlewareGroup `json:"middleware_groups" yaml:"middleware_groups"`
-	Routes           []ConfigRoute                    `json:"routes" yaml:"routes"`
-	DomainRoutes     []ConfigDomainRoute              `json:"domain_routes" yaml:"domain_routes"`
-	Env              Env                              `json:"env" yaml:"env"`
+	RateLimiters     map[string]RateLimitConfig       `json:"rate_limiters" yaml:"rate_limiters"`
+	MiddlewareGroups map[string]MiddlewareGroupConfig `json:"middleware_groups" yaml:"middleware_groups"`
+	Routes           []RouteConfig                    `json:"routes" yaml:"routes"`
+	DomainRoutes     []DomainRouteConfig              `json:"domain_routes" yaml:"domain_routes"`
+	Env              EnvConfig                        `json:"env" yaml:"env"`
 }
 
 func loadEnvVar(key string, errorMsgs *[]string) string {
@@ -60,8 +77,10 @@ func loadEnvVar(key string, errorMsgs *[]string) string {
 
 func LoadConfig() (Config, errors.ErrorHandler) {
 	var errorMsgs []string
-	filepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs) //"config_template.yaml"
-	fileType := loadEnvVar("CONFIG_FILETYPE", &errorMsgs) //"yaml"
+	// filepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
+	// fileType := loadEnvVar("CONFIG_FILETYPE", &errorMsgs)
+	filepath := "config_template.yaml"
+	fileType := "yaml"
 
 	if len(errorMsgs) > 0 {
 		return Config{}, &errors.LoadConfigError{
