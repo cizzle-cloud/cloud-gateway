@@ -8,33 +8,47 @@
 #     - auth_middleware
 #     - nocache_middleware
 
-routes:
-  - prefix: "/dummy"
-    # middleware:
-    #   - auth_middleware
-    paths:
-      - method: "GET"
-        path: "/docs/todos"
-        proxy_target: "https://dummyjson.com"
+# routes:
+#   - prefix: "/dummy"
+#     middleware:
+#       - auth_middleware
+#     paths:
+#       - method: "GET"
+#         path: "/docs/todos"
+#         proxy_target: "https://dummyjson.com"
 
-  - prefix: "/dummy2"
-    # middleware_group: "ratelimit_group"
-    method: "GET"
+#   - prefix: "/dummy2"
+#     middleware_group: "ratelimit_group"
+#     method: "GET"
+#     proxy_target: "https://dummyjson.com"
+
+#   - prefix: "/redirect-dummy"
+#     method: "GET"
+#     redirect_target: "https://dummyjson.com/docs/todos"
+
+#   - prefix: "/redirect-dummy-path"
+#     paths:
+#       - method: "GET"
+#         path: "/docs"
+#         redirect_target: "https://dummyjson.com/docs"
+#       - method: "GET"
+#         path: "/docs/todos"
+#         redirect_target: "https://dummyjson.com/docs/todos"
+
+domain_routes:
+  - domain: "www.localhost.com"
     proxy_target: "https://dummyjson.com"
 
-  - prefix: "/redirect-dummy"
-    method: "GET"
-    redirect_target: "https://dummyjson.com/docs/todos"
+  - domain: "www.localhost.com"
+    proxy_target: "https://dummyjson.com"
 
-  - prefix: "/redirect-dummy-path"
-    paths:
-      - method: "GET"
-        path: "/docs"
-        redirect_target: "https://dummyjson.com/docs"
-      - method: "GET"
-        path: "/docs/todos"
-        redirect_target: "https://dummyjson.com/docs/todos"
+  - domain: "www.spacenarratives.gr"
+    proxy_target:  "https://dummyjson.com"
+
+
+    
 env:
-  PORT: "8000"
+  PORT: "80"
+  HOST: "0.0.0.0"
   VALIDATE_AUTH_URL: "test1"
   REDIRECT_UNAUTHORIZED_URL: "test2"
