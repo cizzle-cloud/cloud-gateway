@@ -81,10 +81,10 @@ func loadEnvVar(key string, errorMsgs *[]string) string {
 
 func LoadConfig() (Config, errors.ErrorHandler) {
 	var errorMsgs []string
-	// filepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
-	// fileType := loadEnvVar("CONFIG_FILETYPE", &errorMsgs)
-	filepath := "config_template.yaml"
-	fileType := "yaml"
+	filepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
+	fileType := loadEnvVar("CONFIG_FILETYPE", &errorMsgs)
+	// filepath := "config_template.yaml"
+	// fileType := "yaml"
 
 	if len(errorMsgs) > 0 {
 		return Config{}, &errors.LoadConfigError{
