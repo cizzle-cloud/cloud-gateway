@@ -40,7 +40,7 @@ func parseRateLimitCfg(cfg config.RateLimitConfig) (*ratelimiter.RateLimiter, ra
 	switch algoType := cfg.Algorithm; algoType {
 	case "fixed_window_counter":
 		algo = ratelimiter.NewFixedWindowCounter(cfg.Limit, cfg.WindowSize)
-	case "token_bucket_counter":
+	case "token_bucket":
 		algo = ratelimiter.NewTokenBucket(cfg.Capacity, cfg.RefillTokens, cfg.RefillInterval)
 	default:
 		log.Fatalf(" [ERROR] Unknown / Unsupported rate limit algorithm: %s.", algo)
