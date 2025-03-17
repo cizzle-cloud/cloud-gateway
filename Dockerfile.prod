@@ -1,5 +1,12 @@
 FROM golang:1.23.2 AS build
 
+ENV DOCKER_BUILDKIT=1
+
+RUN --mount=type=secret,id=ssh,target=/root/.ssh/id_rsa \
+    chmod 600 /root/.ssh/id_rsa && \
+    git config --global url."git@github.com:".insteadOf "https://github.com/" && \
+    mkdir -p /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts
+
 WORKDIR /api-gateway
 
 COPY go.mod go.sum ./
