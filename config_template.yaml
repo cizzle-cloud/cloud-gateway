@@ -37,14 +37,18 @@
 
 rate_limiters:
   fw_1:
+    ttl: "8h"
+    cleanup_interval: "2h" 
     algorithm: "fixed_window_counter"
     limit: 10
-    window_size: 500
+    window_size: "5s"
   tb_1:
+    ttl: "8h"
+    cleanup_interval: "2h" 
     algorithm: "token_bucket"
     capacity: 10
-    refill_tokens: 5
-    refill_interval: 500
+    refill_tokens: 10
+    refill_interval: "5s"
 
 
 

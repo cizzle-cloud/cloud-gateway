@@ -3,9 +3,11 @@ package registry
 import (
 	"api_gateway/config"
 	"api_gateway/handlers"
+	"api_gateway/middleware"
 	"api_gateway/route"
 	"log"
 
+	ratelimiter "github.com/cizzle-cloud/rate-limiter"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,38 +17,57 @@ type RouteRegistry struct {
 }
 
 func (rr *RouteRegistry) FromConfig(cfg config.Config) {
-	rr.parseRateLimiters(cfg)
 	rr.parseRoutes(cfg)
 	rr.parseDomainRoutes(cfg)
-}
-
-func (rr *RouteRegistry) parseRateLimiters(cfg config.Config) {
-	log.Println("RATE LIMITERS", cfg.RateLimiters)
-	for _, ratelimiter := range cfg.RateLimiters {
-		log.Println(ratelimiter)
-	}
 }
 
 func resolveMiddlewareGroup(middlewareGroup string, middlewareGroups map[string]config.MiddlewareGroupConfig) []gin.HandlerFunc {
 	var resolvedMiddleware []gin.HandlerFunc
 	if middlewareGroup != "" {
-		if mws, exists := middlewareGroups[middlewareGroup]; exists {
-			for _, mw := range mws {
-				if handler, ok := route.MiddlewareRegistry[mw]; ok {
-					resolvedMiddleware = append(resolvedMiddleware, handler)
-				}
+		if mwg, exists := middlewareGroups[middlewareGroup]; exists {
+			for _, mw := range mwg {
+				log.Println(mw)
+				// resolvedMiddleware = append(resolvedMiddleware, handler)
 			}
 		}
 	}
 	return resolvedMiddleware
 }
 
-func resolveMiddleware(middleware []string) []gin.HandlerFunc {
+func parseRateLimitCfg(cfg config.RateLimitConfig) (*ratelimiter.RateLimiter, ratelimiter.RateLimitAlgo) {
+	var algo ratelimiter.RateLimitAlgo
+
+	switch algoType := cfg.Algorithm; algoType {
+	case "fixed_window_counter":
+		algo = ratelimiter.NewFixedWindowCounter(cfg.Limit, cfg.WindowSize)
+	case "token_bucket_counter":
+		algo = ratelimiter.NewTokenBucket(cfg.Capacity, cfg.RefillTokens, cfg.RefillInterval)
+	default:
+		log.Fatalf(" [ERROR] Unknown / Unsupported rate limit algorithm: %s.", algo)
+	}
+
+	rl := ratelimiter.NewRateLimiter(cfg.Ttl, cfg.CleanupInterval)
+
+	return rl, algo
+}
+
+func resolveMiddleware(mws []string, cfg config.Config) []gin.HandlerFunc {
 	var resolvedMiddleware []gin.HandlerFunc
-	for _, mw := range middleware {
-		if handler, ok := route.MiddlewareRegistry[mw]; ok {
-			resolvedMiddleware = append(resolvedMiddleware, handler)
+	for _, mw := range mws {
+		var handler gin.HandlerFunc
+
+		if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
+			algo, rl := parseRateLimitCfg(rateLimitCfg)
+			handler = middleware.NewRateLimitMiddleware(algo, rl)
+		} else if authCfg, ok := cfg.Auth[mw]; ok {
+			handler = middleware.NewAuthMiddleware(authCfg)
+		} else if noCachePolicyCfg, ok := cfg.NoCachePolicies[mw]; ok {
+			handler = middleware.NewNoCacheMiddleware(noCachePolicyCfg)
+		} else {
+			log.Fatalf("Unknown or unsupported middleware: %s", mw)
 		}
+
+		resolvedMiddleware = append(resolvedMiddleware, handler)
 	}
 	return resolvedMiddleware
 }
@@ -65,7 +86,7 @@ func (rr *RouteRegistry) parseRoutes(cfg config.Config) {
 			resolvedMiddleware = resolveMiddlewareGroup(r.MiddlewareGroup, cfg.MiddlewareGroups)
 
 		} else {
-			resolvedMiddleware = resolveMiddleware(r.Middleware)
+			resolvedMiddleware = resolveMiddleware(r.Middleware, cfg)
 		}
 
 		log.Println("[INFO] Resolved middleware", r.Prefix, resolvedMiddleware)
@@ -122,7 +143,7 @@ func (rr *RouteRegistry) parseDomainRoutes(cfg config.Config) {
 			resolvedMiddleware = resolveMiddlewareGroup(r.MiddlewareGroup, cfg.MiddlewareGroups)
 
 		} else {
-			resolvedMiddleware = resolveMiddleware(r.Middleware)
+			resolvedMiddleware = resolveMiddleware(r.Middleware, cfg)
 		}
 		log.Println("[INFO] Resolved middleware", r.Domain, resolvedMiddleware)
 		domainRoute := route.NewDomainRoute(r.Domain, r.ProxyTarget, resolvedMiddleware)

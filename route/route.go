@@ -1,18 +1,8 @@
 package route
 
 import (
-	"api_gateway/middleware"
-
 	"github.com/gin-gonic/gin"
 )
-
-// TODO: Fix and see what will happen with args
-
-var MiddlewareRegistry = map[string]gin.HandlerFunc{
-	"auth_middleware":      middleware.NoCacheMiddleware(),
-	"ratelimit_middleware": middleware.NoCacheMiddleware(),
-	"nocache_middleware":   middleware.NoCacheMiddleware(),
-}
 
 type Route struct {
 	Method     string

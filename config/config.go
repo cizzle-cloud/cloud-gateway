@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -13,19 +14,16 @@ import (
 type MiddlewareGroupConfig []string
 
 type RateLimitConfig struct {
-	Algorithm string                 `json:"algorithm" yaml:"algorithm"`
-	RawConfig map[string]interface{} `json:",inline" yaml:",inline"`
-}
+	Algorithm       string        `json:"algorithm" yaml:"algorithm"`
+	Ttl             time.Duration `json:"ttl" yaml:"ttl"`
+	CleanupInterval time.Duration `json:"cleanup_interval" yaml:"cleanup_interval"`
 
-type FixedWindowCounterConfig struct {
-	Limit      int `json:"limit" yaml:"limit"`
-	WindowSize int `json:"window_size" yaml:"window_size"`
-}
+	Limit      int           `json:"limit,omitempty" yaml:"limit,omitempty"`
+	WindowSize time.Duration `json:"window_size,omitempty" yaml:"window_size,omitempty"`
 
-type TokenBucketConfig struct {
-	Capacity       int `json:"capacity" yaml:"capacity"`
-	RefillTokens   int `json:"refill_tokens" yaml:"refill_tokens"`
-	RefillInterval int `json:"refill_interval" yaml:"refill_interval"`
+	Capacity       int           `json:"capacity,omitempty" yaml:"capacity,omitempty"`
+	RefillTokens   int           `json:"refill_tokens,omitempty" yaml:"refill_tokens,omitempty"`
+	RefillInterval time.Duration `json:"refill_interval,omitempty" yaml:"refill_interval,omitempty"`
 }
 
 type PathConfig struct {
@@ -59,8 +57,14 @@ type EnvConfig struct {
 	RedirectUnauthorizedURL string `json:"REDIRECT_UNAUTHORIZED_URL" yaml:"REDIRECT_UNAUTHORIZED_URL"`
 }
 
+type AuthConfig struct{}
+
+type NoCachePolicyConfig struct{}
+
 type Config struct {
 	RateLimiters     map[string]RateLimitConfig       `json:"rate_limiters" yaml:"rate_limiters"`
+	Auth             map[string]AuthConfig            `json:"auth" yaml:"auth"`
+	NoCachePolicies  map[string]NoCachePolicyConfig   `json:"no_cache_policies" yaml:"no_cache_policies"`
 	MiddlewareGroups map[string]MiddlewareGroupConfig `json:"middleware_groups" yaml:"middleware_groups"`
 	Routes           []RouteConfig                    `json:"routes" yaml:"routes"`
 	DomainRoutes     []DomainRouteConfig              `json:"domain_routes" yaml:"domain_routes"`
