@@ -1,0 +1,23 @@
+name: Build and Push docker image to GHCR
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Log in to Github Container Registry
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+      - name: Build
+        run: docker build -f Dockerfile.prod -t ghcr.io/${{ secrets.GHCR_USERNAME }}/api-gateway:latest .
+
+      - name: Push
+        run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/api-gateway:latest
