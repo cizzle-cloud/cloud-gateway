@@ -14,6 +14,10 @@ var client = &http.Client{
 	Timeout: 5 * time.Second,
 }
 
+func NewAuthMiddleware(auth config.AuthConfig) gin.HandlerFunc {
+	return func(c *gin.Context) { log.Println(auth) }
+}
+
 func AuthMiddleware(cfg config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Create a new request to the /auth/validate endpoint on the same API Gateway instance

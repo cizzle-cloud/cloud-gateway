@@ -91,9 +91,15 @@ func forwardRequest(c *gin.Context, target string) {
 func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
 	host := c.Request.Host
 	targetDomain := strings.Split(c.Request.Host, ":")[0]
-	// TODO: Apply also middlware
 	for _, r := range routes {
 		if r.Domain == targetDomain {
+			// Apply also middlware
+			for _, mw := range r.Middleware {
+				mw(c)
+				if c.IsAborted() {
+					return
+				}
+			}
 			log.Printf("[ DOMAIN PROXY ] Host → %s, Domain → %s", host, r.Domain)
 			forwardRequest(c, r.ProxyTarget)
 			return

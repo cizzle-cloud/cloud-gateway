@@ -3,6 +3,7 @@ module api_gateway
 go 1.23.2
 
 require (
+	github.com/cizzle-cloud/rate-limiter v0.0.0-20250317173909-7e2124923c81
 	github.com/gin-gonic/gin v1.10.0
 	gopkg.in/yaml.v3 v3.0.1
 )

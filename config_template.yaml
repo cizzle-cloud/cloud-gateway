@@ -35,6 +35,23 @@
 #         path: "/docs/todos"
 #         redirect_target: "https://dummyjson.com/docs/todos"
 
+rate_limiters:
+  fw_1:
+    ttl: "8h"
+    cleanup_interval: "2h" 
+    algorithm: "fixed_window_counter"
+    limit: 10
+    window_size: "5s"
+  tb_1:
+    ttl: "8h"
+    cleanup_interval: "2h" 
+    algorithm: "token_bucket"
+    capacity: 10
+    refill_tokens: 10
+    refill_interval: "5s"
+
+
+
 domain_routes:
   - domain: "www.localhost.com"
     proxy_target: "https://dummyjson.com"
@@ -43,6 +60,8 @@ domain_routes:
     proxy_target: "https://dummyjson.com"
 
   - domain: "www.spacenarratives.gr"
+    middleware:
+      - "fw_1"
     proxy_target:  "https://dummyjson.com"
 
 

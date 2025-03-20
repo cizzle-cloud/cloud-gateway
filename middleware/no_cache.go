@@ -1,6 +1,15 @@
 package middleware
 
-import "github.com/gin-gonic/gin"
+import (
+	"api_gateway/config"
+	"log"
+
+	"github.com/gin-gonic/gin"
+)
+
+func NewNoCacheMiddleware(noCachePolicy config.NoCachePolicyConfig) gin.HandlerFunc {
+	return func(c *gin.Context) { log.Println(noCachePolicy) }
+}
 
 // Middleware that disables cache of responses for protected endpoints.
 func NoCacheMiddleware() gin.HandlerFunc {
