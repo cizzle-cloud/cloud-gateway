@@ -93,6 +93,16 @@ func (rr *RouteRegistry) parseRoutes(cfg config.Config) {
 
 		// If the entire prefix is a proxy route (no specific paths)
 		if r.ProxyTarget != "" {
+			if r.Prefix == "" || r.Prefix == "/" {
+				if r.Method != "" {
+					log.Fatal("[ERROR] Base route with proxy target has method defined.")
+				} else {
+					route := route.NewRoute(r.Method, r.Prefix, resolvedMiddleware).WithProxy(r.ProxyTarget)
+					routes = append(routes, route)
+					continue
+				}
+			}
+
 			route := route.NewRoute(r.Method, r.Prefix+"/*path", resolvedMiddleware).WithProxy(r.ProxyTarget)
 			routes = append(routes, route)
 			continue
@@ -156,6 +166,11 @@ func (rr *RouteRegistry) parseDomainRoutes(cfg config.Config) {
 func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 	for _, route := range rr.Routes {
 		var handler gin.HandlerFunc
+		// if route.ProxyTarget != "" && (route.Prefix == "/" || route.Prefix == "") {
+		// 	handler = func(c *gin.Context) {
+		// 		handlers.BaseRouteProxyHandler(c, route.ProxyTarget)
+		// 	}
+		// }
 		if route.ProxyTarget != "" {
 			handler = func(c *gin.Context) {
 				handlers.ProxyRequestHandler(c, route.ProxyTarget, route.FixedPath)
@@ -165,12 +180,22 @@ func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 				handlers.RedirectHandler(c, route.RedirectTarget)
 			}
 		}
-		handlers := append(route.Middleware, handler)
-		r.Handle(route.Method, route.Prefix, handlers...)
+		handlerss := append(route.Middleware, handler)
+		if route.Prefix == "" || route.Prefix == "/" {
+			log.Println("[DEBUG] FOUND ONE CASE ", route.ProxyTarget)
+			r.NoRoute(func(c *gin.Context) {
+				handlers.BaseRouteProxyHandler(c, route.ProxyTarget)
+			})
+		} else {
+			r.Handle(route.Method, route.Prefix, handlerss...)
+		}
 	}
 }
 
 func (rr *RouteRegistry) RegisterDomainRoutes(r *gin.Engine) {
+	if len(rr.DomainRoutes) == 0 {
+		return
+	}
 	r.NoRoute(func(c *gin.Context) {
 		handlers.DomainProxyHandler(c, rr.DomainRoutes)
 	})
