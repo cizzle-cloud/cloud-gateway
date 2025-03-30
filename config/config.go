@@ -79,10 +79,26 @@ func loadEnvVar(key string, errorMsgs *[]string) string {
 	return value
 }
 
-func LoadConfig() (Config, errors.ErrorHandler) {
+type Env struct {
+	ConfigFilepath string
+	ConfigFileType string
+}
+
+func LoadEnv() (Env, errors.ErrorHandler) {
 	var errorMsgs []string
 	filepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
 	fileType := loadEnvVar("CONFIG_FILETYPE", &errorMsgs)
+	if len(errorMsgs) > 0 {
+		return Env{}, &errors.LoadConfigError{
+			Message: "error while loading Env Vars:\n" + strings.Join(errorMsgs, "\n"),
+		}
+	}
+
+	return Env{ConfigFilepath: filepath, ConfigFileType: fileType}, nil
+}
+
+func LoadConfig(filepath, fileType string) (Config, errors.ErrorHandler) {
+	var errorMsgs []string
 
 	if len(errorMsgs) > 0 {
 		return Config{}, &errors.LoadConfigError{

@@ -9,7 +9,13 @@ import (
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
+	env, err := config.LoadEnv()
+	if err != nil {
+		err.Handle()
+		return
+	}
+
+	cfg, err := config.LoadConfig(env.ConfigFilepath, env.ConfigFileType)
 	if err != nil {
 		err.Handle()
 		return

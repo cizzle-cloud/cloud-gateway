@@ -17,8 +17,8 @@ type RouteRegistry struct {
 }
 
 func (rr *RouteRegistry) FromConfig(cfg config.Config) {
-	rr.parseRoutes(cfg)
-	rr.parseDomainRoutes(cfg)
+	rr.ParseRoutes(cfg)
+	rr.ParseDomainRoutes(cfg)
 }
 
 func resolveMiddlewareGroup(middlewareGroup string, middlewareGroups map[string]config.MiddlewareGroupConfig) []gin.HandlerFunc {
@@ -34,7 +34,7 @@ func resolveMiddlewareGroup(middlewareGroup string, middlewareGroups map[string]
 	return resolvedMiddleware
 }
 
-func parseRateLimitCfg(cfg config.RateLimitConfig) (*ratelimiter.RateLimiter, ratelimiter.RateLimitAlgo) {
+func ParseRateLimitCfg(cfg config.RateLimitConfig) (*ratelimiter.RateLimiter, ratelimiter.RateLimitAlgo) {
 	var algo ratelimiter.RateLimitAlgo
 
 	switch algoType := cfg.Algorithm; algoType {
@@ -57,7 +57,7 @@ func resolveMiddleware(mws []string, cfg config.Config) []gin.HandlerFunc {
 		var handler gin.HandlerFunc
 
 		if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
-			algo, rl := parseRateLimitCfg(rateLimitCfg)
+			algo, rl := ParseRateLimitCfg(rateLimitCfg)
 			handler = middleware.NewRateLimitMiddleware(algo, rl)
 		} else if authCfg, ok := cfg.Auth[mw]; ok {
 			handler = middleware.NewAuthMiddleware(authCfg)
@@ -72,7 +72,7 @@ func resolveMiddleware(mws []string, cfg config.Config) []gin.HandlerFunc {
 	return resolvedMiddleware
 }
 
-func (rr *RouteRegistry) parseRoutes(cfg config.Config) {
+func (rr *RouteRegistry) ParseRoutes(cfg config.Config) {
 	var routes []route.Route
 
 	for _, r := range cfg.Routes {
@@ -97,19 +97,19 @@ func (rr *RouteRegistry) parseRoutes(cfg config.Config) {
 				if r.Method != "" {
 					log.Fatal("[ERROR] Base route with proxy target has method defined.")
 				} else {
-					route := route.NewRoute(r.Method, r.Prefix, resolvedMiddleware).WithProxy(r.ProxyTarget)
+					route := route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithProxy(r.ProxyTarget)
 					routes = append(routes, route)
 					continue
 				}
 			}
 
-			route := route.NewRoute(r.Method, r.Prefix+"/*path", resolvedMiddleware).WithProxy(r.ProxyTarget)
+			route := route.NewRoute(r.Method, r.Prefix, r.Prefix+"/*path", resolvedMiddleware).WithProxy(r.ProxyTarget)
 			routes = append(routes, route)
 			continue
 		}
 
 		if r.RedirectTarget != "" {
-			route := route.NewRoute(r.Method, r.Prefix+"/*path", resolvedMiddleware).WithRedirect(r.RedirectTarget)
+			route := route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithRedirect(r.RedirectTarget)
 			routes = append(routes, route)
 			continue
 		}
@@ -122,25 +122,25 @@ func (rr *RouteRegistry) parseRoutes(cfg config.Config) {
 			}
 
 			fixedPath := path.Path
-			route := route.NewRoute(path.Method, r.Prefix+fixedPath, resolvedMiddleware).
-				WithFixedPath(fixedPath)
-
+			var pathRoute route.Route
 			if path.ProxyTarget != "" {
-				route = route.WithProxy(path.ProxyTarget)
+				pathRoute = route.NewRoute(path.Method, r.Prefix, r.Prefix+fixedPath+"/*path", resolvedMiddleware).
+					WithFixedPath(fixedPath).WithProxy(path.ProxyTarget)
 			}
 
 			if path.RedirectTarget != "" {
-				route = route.WithRedirect(path.RedirectTarget)
+				pathRoute = route.NewRoute(path.Method, r.Prefix, r.Prefix+fixedPath, resolvedMiddleware).
+					WithFixedPath(fixedPath).WithRedirect(path.RedirectTarget)
 			}
 
-			routes = append(routes, route)
+			routes = append(routes, pathRoute)
 		}
 	}
 
 	rr.Routes = routes
 }
 
-func (rr *RouteRegistry) parseDomainRoutes(cfg config.Config) {
+func (rr *RouteRegistry) ParseDomainRoutes(cfg config.Config) {
 	var domainRoutes []route.DomainRoute
 
 	for _, r := range cfg.DomainRoutes {
@@ -182,7 +182,7 @@ func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 				handlers.BaseRouteProxyHandler(c, route.ProxyTarget)
 			})
 		} else {
-			r.Handle(route.Method, route.Prefix, handlerFuncs...)
+			r.Handle(route.Method, route.RelativePath, handlerFuncs...)
 		}
 	}
 }
