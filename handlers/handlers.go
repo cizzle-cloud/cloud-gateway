@@ -108,3 +108,8 @@ func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
 
 	c.JSON(http.StatusNotFound, gin.H{"error": "no backend found for domain"})
 }
+
+func BaseRouteProxyHandler(c *gin.Context, target string) {
+	log.Println("[BASE ROUTE PROXY] target", target)
+	forwardRequest(c, target)
+}

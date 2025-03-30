@@ -43,7 +43,7 @@ func parseRateLimitCfg(cfg config.RateLimitConfig) (*ratelimiter.RateLimiter, ra
 	case "token_bucket":
 		algo = ratelimiter.NewTokenBucket(cfg.Capacity, cfg.RefillTokens, cfg.RefillInterval)
 	default:
-		log.Fatalf(" [ERROR] Unknown / Unsupported rate limit algorithm: %s.", algo)
+		log.Fatalf("[ERROR] Unknown / Unsupported rate limit algorithm: %s.", algo)
 	}
 
 	rl := ratelimiter.NewRateLimiter(cfg.Ttl, cfg.CleanupInterval)
@@ -64,7 +64,7 @@ func resolveMiddleware(mws []string, cfg config.Config) []gin.HandlerFunc {
 		} else if noCachePolicyCfg, ok := cfg.NoCachePolicies[mw]; ok {
 			handler = middleware.NewNoCacheMiddleware(noCachePolicyCfg)
 		} else {
-			log.Fatalf("Unknown or unsupported middleware: %s", mw)
+			log.Fatalf("[ERROR] Unknown or unsupported middleware: %s", mw)
 		}
 
 		resolvedMiddleware = append(resolvedMiddleware, handler)
@@ -93,6 +93,16 @@ func (rr *RouteRegistry) parseRoutes(cfg config.Config) {
 
 		// If the entire prefix is a proxy route (no specific paths)
 		if r.ProxyTarget != "" {
+			if r.Prefix == "" || r.Prefix == "/" {
+				if r.Method != "" {
+					log.Fatal("[ERROR] Base route with proxy target has method defined.")
+				} else {
+					route := route.NewRoute(r.Method, r.Prefix, resolvedMiddleware).WithProxy(r.ProxyTarget)
+					routes = append(routes, route)
+					continue
+				}
+			}
+
 			route := route.NewRoute(r.Method, r.Prefix+"/*path", resolvedMiddleware).WithProxy(r.ProxyTarget)
 			routes = append(routes, route)
 			continue
@@ -156,6 +166,7 @@ func (rr *RouteRegistry) parseDomainRoutes(cfg config.Config) {
 func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 	for _, route := range rr.Routes {
 		var handler gin.HandlerFunc
+
 		if route.ProxyTarget != "" {
 			handler = func(c *gin.Context) {
 				handlers.ProxyRequestHandler(c, route.ProxyTarget, route.FixedPath)
@@ -165,12 +176,21 @@ func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 				handlers.RedirectHandler(c, route.RedirectTarget)
 			}
 		}
-		handlers := append(route.Middleware, handler)
-		r.Handle(route.Method, route.Prefix, handlers...)
+		handlerFuncs := append(route.Middleware, handler)
+		if route.Prefix == "" || route.Prefix == "/" {
+			r.NoRoute(func(c *gin.Context) {
+				handlers.BaseRouteProxyHandler(c, route.ProxyTarget)
+			})
+		} else {
+			r.Handle(route.Method, route.Prefix, handlerFuncs...)
+		}
 	}
 }
 
 func (rr *RouteRegistry) RegisterDomainRoutes(r *gin.Engine) {
+	if len(rr.DomainRoutes) == 0 {
+		return
+	}
 	r.NoRoute(func(c *gin.Context) {
 		handlers.DomainProxyHandler(c, rr.DomainRoutes)
 	})
