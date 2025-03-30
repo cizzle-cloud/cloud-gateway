@@ -11,6 +11,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	RouteHandle       = 0
+	RouteNoRoute      = 1
+	RouteInvalidRoute = 2
+)
+
 type RouteRegistry struct {
 	Routes       []route.Route
 	DomainRoutes []route.DomainRoute
@@ -163,26 +169,41 @@ func (rr *RouteRegistry) ParseDomainRoutes(cfg config.Config) {
 	rr.DomainRoutes = domainRoutes
 }
 
+func getRouteHandler(route route.Route) (gin.HandlerFunc, int8) {
+	switch {
+	case route.Prefix == "" || route.Prefix == "/":
+		return func(c *gin.Context) {
+			handlers.BaseRouteProxyHandler(c, route.ProxyTarget)
+		}, RouteNoRoute
+
+	case route.ProxyTarget != "":
+		return func(c *gin.Context) {
+			handlers.ProxyRequestHandler(c, route.ProxyTarget, route.FixedPath)
+		}, RouteHandle
+
+	case route.RedirectTarget != "":
+		return func(c *gin.Context) {
+			handlers.RedirectHandler(c, route.RedirectTarget)
+		}, RouteHandle
+	default:
+		return nil, RouteInvalidRoute
+
+	}
+}
+
 func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 	for _, route := range rr.Routes {
-		var handler gin.HandlerFunc
+		handler, routeType := getRouteHandler(route)
 
-		if route.ProxyTarget != "" {
-			handler = func(c *gin.Context) {
-				handlers.ProxyRequestHandler(c, route.ProxyTarget, route.FixedPath)
-			}
-		} else if route.RedirectTarget != "" {
-			handler = func(c *gin.Context) {
-				handlers.RedirectHandler(c, route.RedirectTarget)
-			}
-		}
-		handlerFuncs := append(route.Middleware, handler)
-		if route.Prefix == "" || route.Prefix == "/" {
-			r.NoRoute(func(c *gin.Context) {
-				handlers.BaseRouteProxyHandler(c, route.ProxyTarget)
-			})
-		} else {
+		switch routeType {
+		case RouteHandle:
+			handlerFuncs := append(route.Middleware, handler)
 			r.Handle(route.Method, route.RelativePath, handlerFuncs...)
+		case RouteNoRoute:
+			r.NoRoute(handler)
+		case RouteInvalidRoute:
+			// TODO Understand fatal vs panic
+			log.Fatal("[ERROR] Invalid/Unknown route configuration")
 		}
 	}
 }
