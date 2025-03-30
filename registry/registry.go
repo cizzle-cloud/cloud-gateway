@@ -43,7 +43,7 @@ func parseRateLimitCfg(cfg config.RateLimitConfig) (*ratelimiter.RateLimiter, ra
 	case "token_bucket":
 		algo = ratelimiter.NewTokenBucket(cfg.Capacity, cfg.RefillTokens, cfg.RefillInterval)
 	default:
-		log.Fatalf(" [ERROR] Unknown / Unsupported rate limit algorithm: %s.", algo)
+		log.Fatalf("[ERROR] Unknown / Unsupported rate limit algorithm: %s.", algo)
 	}
 
 	rl := ratelimiter.NewRateLimiter(cfg.Ttl, cfg.CleanupInterval)
@@ -64,7 +64,7 @@ func resolveMiddleware(mws []string, cfg config.Config) []gin.HandlerFunc {
 		} else if noCachePolicyCfg, ok := cfg.NoCachePolicies[mw]; ok {
 			handler = middleware.NewNoCacheMiddleware(noCachePolicyCfg)
 		} else {
-			log.Fatalf("Unknown or unsupported middleware: %s", mw)
+			log.Fatalf("[ERROR] Unknown or unsupported middleware: %s", mw)
 		}
 
 		resolvedMiddleware = append(resolvedMiddleware, handler)
@@ -166,11 +166,7 @@ func (rr *RouteRegistry) parseDomainRoutes(cfg config.Config) {
 func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 	for _, route := range rr.Routes {
 		var handler gin.HandlerFunc
-		// if route.ProxyTarget != "" && (route.Prefix == "/" || route.Prefix == "") {
-		// 	handler = func(c *gin.Context) {
-		// 		handlers.BaseRouteProxyHandler(c, route.ProxyTarget)
-		// 	}
-		// }
+
 		if route.ProxyTarget != "" {
 			handler = func(c *gin.Context) {
 				handlers.ProxyRequestHandler(c, route.ProxyTarget, route.FixedPath)
@@ -180,14 +176,13 @@ func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 				handlers.RedirectHandler(c, route.RedirectTarget)
 			}
 		}
-		handlerss := append(route.Middleware, handler)
+		handlerFuncs := append(route.Middleware, handler)
 		if route.Prefix == "" || route.Prefix == "/" {
-			log.Println("[DEBUG] FOUND ONE CASE ", route.ProxyTarget)
 			r.NoRoute(func(c *gin.Context) {
 				handlers.BaseRouteProxyHandler(c, route.ProxyTarget)
 			})
 		} else {
-			r.Handle(route.Method, route.Prefix, handlerss...)
+			r.Handle(route.Method, route.Prefix, handlerFuncs...)
 		}
 	}
 }
