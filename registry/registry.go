@@ -27,17 +27,35 @@ func (rr *RouteRegistry) FromConfig(cfg config.Config) {
 	rr.ParseDomainRoutes(cfg)
 }
 
-func resolveMiddlewareGroup(middlewareGroup string, middlewareGroups map[string]config.MiddlewareGroupConfig) []gin.HandlerFunc {
-	var resolvedMiddleware []gin.HandlerFunc
-	if middlewareGroup != "" {
-		if mwg, exists := middlewareGroups[middlewareGroup]; exists {
-			for _, mw := range mwg {
-				log.Println(mw)
-				// resolvedMiddleware = append(resolvedMiddleware, handler)
-			}
-		}
+func resolveMiddlewareGroup(middlewareGroup string, cfg config.Config) []gin.HandlerFunc {
+	return resolveMiddlewareList(cfg.MiddlewareGroups[middlewareGroup], cfg)
+}
+
+func resolveMiddleware(mw string, cfg config.Config) gin.HandlerFunc {
+	var handler gin.HandlerFunc
+
+	if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
+		algo, rl := ParseRateLimitCfg(rateLimitCfg)
+		handler = middleware.NewRateLimitMiddleware(algo, rl)
+	} else if authCfg, ok := cfg.Auth[mw]; ok {
+		handler = middleware.NewAuthMiddleware(authCfg)
+	} else if noCachePolicyCfg, ok := cfg.NoCachePolicies[mw]; ok {
+		handler = middleware.NewNoCacheMiddleware(noCachePolicyCfg)
+	} else {
+		log.Fatalf("[ERROR] Unknown or unsupported middleware: %s", mw)
 	}
-	return resolvedMiddleware
+
+	return handler
+}
+
+func resolveMiddlewareList(mwl []string, cfg config.Config) []gin.HandlerFunc {
+	var handlers []gin.HandlerFunc
+
+	for _, mw := range mwl {
+		handlers = append(handlers, resolveMiddleware(mw, cfg))
+	}
+
+	return handlers
 }
 
 func ParseRateLimitCfg(cfg config.RateLimitConfig) (*ratelimiter.RateLimiter, ratelimiter.RateLimitAlgo) {
@@ -57,27 +75,6 @@ func ParseRateLimitCfg(cfg config.RateLimitConfig) (*ratelimiter.RateLimiter, ra
 	return rl, algo
 }
 
-func resolveMiddleware(mws []string, cfg config.Config) []gin.HandlerFunc {
-	var resolvedMiddleware []gin.HandlerFunc
-	for _, mw := range mws {
-		var handler gin.HandlerFunc
-
-		if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
-			algo, rl := ParseRateLimitCfg(rateLimitCfg)
-			handler = middleware.NewRateLimitMiddleware(algo, rl)
-		} else if authCfg, ok := cfg.Auth[mw]; ok {
-			handler = middleware.NewAuthMiddleware(authCfg)
-		} else if noCachePolicyCfg, ok := cfg.NoCachePolicies[mw]; ok {
-			handler = middleware.NewNoCacheMiddleware(noCachePolicyCfg)
-		} else {
-			log.Fatalf("[ERROR] Unknown or unsupported middleware: %s", mw)
-		}
-
-		resolvedMiddleware = append(resolvedMiddleware, handler)
-	}
-	return resolvedMiddleware
-}
-
 func (rr *RouteRegistry) ParseRoutes(cfg config.Config) {
 	var routes []route.Route
 
@@ -87,63 +84,68 @@ func (rr *RouteRegistry) ParseRoutes(cfg config.Config) {
 			log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Program will exit.")
 		}
 
-		var resolvedMiddleware []gin.HandlerFunc
-		if r.MiddlewareGroup != "" {
-			resolvedMiddleware = resolveMiddlewareGroup(r.MiddlewareGroup, cfg.MiddlewareGroups)
+		resolvedMiddleware := append(
+			resolveMiddlewareGroup(r.MiddlewareGroup, cfg),
+			resolveMiddlewareList(r.Middleware, cfg)...,
+		)
 
-		} else {
-			resolvedMiddleware = resolveMiddleware(r.Middleware, cfg)
-		}
-
-		log.Println("[INFO] Resolved middleware", r.Prefix, resolvedMiddleware)
-
-		// If the entire prefix is a proxy route (no specific paths)
 		if r.ProxyTarget != "" {
-			if r.Prefix == "" || r.Prefix == "/" {
-				if r.Method != "" {
-					log.Fatal("[ERROR] Base route with proxy target has method defined.")
-				} else {
-					route := route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithProxy(r.ProxyTarget)
-					routes = append(routes, route)
-					continue
-				}
-			}
-
-			route := route.NewRoute(r.Method, r.Prefix, r.Prefix+"/*path", resolvedMiddleware).WithProxy(r.ProxyTarget)
-			routes = append(routes, route)
+			routes = append(routes, handleProxyRoute(r, resolvedMiddleware))
 			continue
 		}
 
 		if r.RedirectTarget != "" {
-			route := route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithRedirect(r.RedirectTarget)
-			routes = append(routes, route)
+			routes = append(
+				routes,
+				route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithRedirect(r.RedirectTarget),
+			)
 			continue
 		}
 
-		// Register individual paths under the prefix
-		for _, path := range r.Paths {
-
-			if path.ProxyTarget != "" && path.RedirectTarget != "" {
-				log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Program will exit.")
-			}
-
-			fixedPath := path.Path
-			var pathRoute route.Route
-			if path.ProxyTarget != "" {
-				pathRoute = route.NewRoute(path.Method, r.Prefix, r.Prefix+fixedPath+"/*path", resolvedMiddleware).
-					WithFixedPath(fixedPath).WithProxy(path.ProxyTarget)
-			}
-
-			if path.RedirectTarget != "" {
-				pathRoute = route.NewRoute(path.Method, r.Prefix, r.Prefix+fixedPath, resolvedMiddleware).
-					WithFixedPath(fixedPath).WithRedirect(path.RedirectTarget)
-			}
-
-			routes = append(routes, pathRoute)
-		}
+		routes = append(routes, handlePathRoutes(r, resolvedMiddleware)...)
 	}
 
 	rr.Routes = routes
+}
+
+// Handle Proxy Target for prefix routes where no specific paths are defined
+func handleProxyRoute(r config.RouteConfig, resolvedMiddleware []gin.HandlerFunc) route.Route {
+	if r.Prefix == "" || r.Prefix == "/" {
+		if r.Method != "" {
+			log.Fatal("[ERROR] Base route with proxy target has method defined.")
+		}
+		return route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithProxy(r.ProxyTarget)
+	}
+
+	return route.NewRoute(r.Method, r.Prefix, r.Prefix+"/*path", resolvedMiddleware).WithProxy(r.ProxyTarget)
+}
+
+// Handle individual paths under the prefix
+func handlePathRoutes(r config.RouteConfig, resolvedMiddleware []gin.HandlerFunc) []route.Route {
+	var pathRoutes []route.Route
+
+	for _, path := range r.Paths {
+
+		if path.ProxyTarget != "" && path.RedirectTarget != "" {
+			log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Program will exit.")
+		}
+
+		fixedPath := path.Path
+		var pathRoute route.Route
+		if path.ProxyTarget != "" {
+			pathRoute = route.NewRoute(path.Method, r.Prefix, r.Prefix+fixedPath+"/*path", resolvedMiddleware).
+				WithFixedPath(fixedPath).WithProxy(path.ProxyTarget)
+		}
+
+		if path.RedirectTarget != "" {
+			pathRoute = route.NewRoute(path.Method, r.Prefix, r.Prefix+fixedPath, resolvedMiddleware).
+				WithFixedPath(fixedPath).WithRedirect(path.RedirectTarget)
+		}
+
+		pathRoutes = append(pathRoutes, pathRoute)
+	}
+
+	return pathRoutes
 }
 
 func (rr *RouteRegistry) ParseDomainRoutes(cfg config.Config) {
@@ -154,16 +156,15 @@ func (rr *RouteRegistry) ParseDomainRoutes(cfg config.Config) {
 			log.Fatal("[ERROR] Domain or ProxyTarget is missing. Program will exit.")
 		}
 
-		var resolvedMiddleware []gin.HandlerFunc
-		if r.MiddlewareGroup != "" {
-			resolvedMiddleware = resolveMiddlewareGroup(r.MiddlewareGroup, cfg.MiddlewareGroups)
+		resolvedMiddleware := append(
+			resolveMiddlewareGroup(r.MiddlewareGroup, cfg),
+			resolveMiddlewareList(r.Middleware, cfg)...,
+		)
 
-		} else {
-			resolvedMiddleware = resolveMiddleware(r.Middleware, cfg)
-		}
-		log.Println("[INFO] Resolved middleware", r.Domain, resolvedMiddleware)
-		domainRoute := route.NewDomainRoute(r.Domain, r.ProxyTarget, resolvedMiddleware)
-		domainRoutes = append(domainRoutes, domainRoute)
+		domainRoutes = append(
+			domainRoutes,
+			route.NewDomainRoute(r.Domain, r.ProxyTarget, resolvedMiddleware),
+		)
 	}
 
 	rr.DomainRoutes = domainRoutes
