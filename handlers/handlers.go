@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ProxyRequestHandler(c *gin.Context, target string, fixedPath string) {
+func ProxyRequestHandler(c *gin.Context, target, targetPath string) {
 	targetURL, err := url.Parse(target)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid proxy target"})
@@ -21,32 +21,22 @@ func ProxyRequestHandler(c *gin.Context, target string, fixedPath string) {
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 
-	log.Printf("[ PROXY ] Request received at %s at %s\n", c.Request.URL, time.Now())
-	log.Printf("[ PROXY ] Target URL: %s", targetURL)
-	log.Printf("[ PROXY ] Target URL Path: %s", targetURL.Path)
-	log.Printf("[ PROXY ] C param Path: %s", c.Param("path"))
-	log.Printf("[ PROXY ] Target URL host: %s", targetURL.Host)
-	log.Printf("[ PROXY ] Target URL Scheme: %s", targetURL.Scheme)
+	proxy.Director = func(req *http.Request) {
+		// Modify request parameters
+		req.URL.Path = targetURL.Path + targetPath
+		req.Host = targetURL.Host
+		req.URL.Host = targetURL.Host
+		req.URL.Scheme = targetURL.Scheme
 
-	var newPath string
-	if fixedPath != "" {
-		newPath = targetURL.Path + c.Param("path") + fixedPath
-	} else {
-		newPath = targetURL.Path + c.Param("path")
+		// Forward original host
+		req.Header.Set("X-Forwarded-Host", c.Request.Host)
+
+		log.Printf("[PROXY] Forwarding request to %s at %s\n", req.URL, time.Now())
+		log.Printf("[PROXY] X-Forwarded-Host: %s", req.Header.Get("X-Forwarded-Host"))
 	}
 
-	c.Request.Header.Set("X-Forwarded-Host", c.Request.Host)
-
-	c.Request.URL.Path = newPath
-	c.Request.Host = targetURL.Host
-	c.Request.URL.Host = targetURL.Host
-	c.Request.URL.Scheme = targetURL.Scheme
-
-	log.Printf("[ PROXY ] Request Path: %s", c.Request.URL.Path)
-	log.Printf("[ PROXY ] X-Forwarded-Host: %s", c.Request.Host)
-	log.Printf("[ PROXY ] Forwarding request to %s at %s\n", c.Request.URL, time.Now())
-
-	log.Printf("[ PROXY ] X-Forwarded-Host: %s", c.Request.Header.Get("X-Forwarded-Host"))
+	log.Printf("[PROXY] Request received at %s at %s\n", c.Request.URL, time.Now())
+	log.Printf("[PROXY] Target URL: %s", targetURL)
 
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
@@ -55,42 +45,9 @@ func RedirectHandler(c *gin.Context, url string) {
 	c.Redirect(http.StatusFound, url)
 }
 
-func forwardRequest(c *gin.Context, target string) {
-	targetURL, err := url.Parse(target)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid proxy target"})
-		return
-	}
-
-	proxy := httputil.NewSingleHostReverseProxy(targetURL)
-
-	log.Printf("[ PROXY ] X-Forwarded-Host: %s", c.Request.Host)
-
-	log.Println("[ DOMAIN PROXY ] before")
-	log.Printf("[ DOMAIN PROXY ] Host %s", c.Request.Host)
-	log.Printf("[ DOMAIN PROXY ] URL host %s", c.Request.URL.Host)
-	log.Printf("[ DOMAIN PROXY ] Scheme %s", c.Request.URL.Scheme)
-
-	c.Request.Header.Set("X-Forwarded-Host", c.Request.Host)
-
-	c.Request.Host = targetURL.Host
-	c.Request.URL.Host = targetURL.Host
-	c.Request.URL.Scheme = targetURL.Scheme
-
-	log.Printf("[ PROXY ] X-Forwarded-Host: %s", c.Request.Host)
-
-	log.Println("[ DOMAIN PROXY ] after")
-	log.Printf("[ DOMAIN PROXY ] Host %s", c.Request.Host)
-	log.Printf("[ DOMAIN PROXY ] URL host %s", c.Request.URL.Host)
-	log.Printf("[ DOMAIN PROXY ] Scheme %s", c.Request.URL.Scheme)
-
-	log.Printf("[ DOMAIN PROXY ] X-Forwarded-Host: %s", c.Request.Header.Get("X-Forwarded-Host"))
-	proxy.ServeHTTP(c.Writer, c.Request)
-}
-
 func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
-	host := c.Request.Host
 	targetDomain := strings.Split(c.Request.Host, ":")[0]
+	reqUrlPath := c.Request.URL.Path
 	for _, r := range routes {
 		if r.Domain == targetDomain {
 			// Apply also middlware
@@ -100,16 +57,11 @@ func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
 					return
 				}
 			}
-			log.Printf("[ DOMAIN PROXY ] Host → %s, Domain → %s", host, r.Domain)
-			forwardRequest(c, r.ProxyTarget)
+
+			ProxyRequestHandler(c, r.ProxyTarget, reqUrlPath)
 			return
 		}
 	}
 
 	c.JSON(http.StatusNotFound, gin.H{"error": "no backend found for domain"})
-}
-
-func BaseRouteProxyHandler(c *gin.Context, target string) {
-	log.Println("[BASE ROUTE PROXY] target", target)
-	forwardRequest(c, target)
 }
