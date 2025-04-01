@@ -6,6 +6,7 @@ import (
 	"api_gateway/middleware"
 	"api_gateway/route"
 	"log"
+	"path"
 
 	ratelimiter "github.com/cizzle-cloud/rate-limiter"
 	"github.com/gin-gonic/gin"
@@ -179,7 +180,7 @@ func getRouteHandler(route route.Route) (gin.HandlerFunc, int8) {
 
 	case route.ProxyTarget != "":
 		return func(c *gin.Context) {
-			handlers.ProxyRequestHandler(c, route.ProxyTarget, c.Param("path")+route.FixedPath)
+			handlers.ProxyRequestHandler(c, route.ProxyTarget, path.Clean(c.Param("path")+route.FixedPath))
 		}, RouteHandle
 
 	case route.RedirectTarget != "":
