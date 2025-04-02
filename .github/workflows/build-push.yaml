@@ -21,10 +21,7 @@ jobs:
 
       - name: Set up Git to use GitHub Token
               run: |
-                git config --global url."https://${{ secrets.GHCR_USERNAME }}:${{ secrets.GHCR_TOKEN }}@github.com/".insteadOf "https://github.com/"
-              env:
-                GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-                GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+                git config --global url."https://${{ secrets.GHCR_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - name: Install dependencies
         run: go mod download
