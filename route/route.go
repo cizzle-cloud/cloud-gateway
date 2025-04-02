@@ -5,20 +5,22 @@ import (
 )
 
 type Route struct {
-	Method     string
-	Prefix     string
-	Middleware []gin.HandlerFunc
+	Method       string
+	Prefix       string
+	RelativePath string
+	Middleware   []gin.HandlerFunc
 	// optional fields
 	ProxyTarget    string
 	RedirectTarget string
 	FixedPath      string
 }
 
-func NewRoute(method, prefix string, middleware []gin.HandlerFunc) Route {
+func NewRoute(method, prefix, relativePath string, middleware []gin.HandlerFunc) Route {
 	return Route{
-		Method:     method,
-		Prefix:     prefix,
-		Middleware: middleware,
+		Method:       method,
+		Prefix:       prefix,
+		RelativePath: relativePath,
+		Middleware:   middleware,
 	}
 }
 

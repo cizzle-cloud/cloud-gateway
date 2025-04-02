@@ -22,6 +22,9 @@
 #     method: "GET"
 #     proxy_target: "https://dummyjson.com"
 
+
+# REMOVE METHOD FROM HGERE
+
   - prefix: "/redirect-dummy"
     method: "GET"
     redirect_target: "https://dummyjson.com/docs/todos"

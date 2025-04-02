@@ -1,0 +1,63 @@
+rate_limiters:
+  fw_1:
+    ttl: "8h"
+    cleanup_interval: "2h"
+    algorithm: "fixed_window_counter"
+    limit: 10
+    window_size: "5s"
+  tb_1:
+    ttl: "8h"
+    cleanup_interval: "2h"
+    algorithm: "token_bucket"
+    capacity: 10
+    refill_tokens: 10
+    refill_interval: "5s"
+
+routes:
+  - prefix: "/foo"
+    method: "POST"
+    proxy_target: "https://bar.com"
+    middleware:
+      - tb_1
+
+  - prefix: "/foo"
+    middleware:
+      - tb_1
+    paths:
+      - method: "GET"
+        path: "/docs/todos"
+        proxy_target: "https://bar.com"
+        middleware:
+          - fw_1
+
+      - method: "PUT"
+        path: "/docs/templates"
+        proxy_target: "https://bar.com"
+
+  - prefix: "/foobar"
+    redirect_target: "https://xyzzy.com"
+
+  - prefix: "/thud"
+    paths:
+      - path: "/foo"
+        redirect_target: "https://foo.com"
+      - path: "/bar"
+        redirect_target: "https://bar.com"
+
+domain_routes:
+  - domain: "www.example.com"
+    proxy_target: "https://dummy.com"
+    middleware:
+      - fw_1
+
+  - domain: "www.test.com"
+    proxy_target: "https://tower.com"
+    middleware:
+      - fw_1
+      - tb_1
+
+env:
+  PORT: "80"
+  HOST: "0.0.0.0"
+  VALIDATE_AUTH_URL: "validate_auth_url"
+  REDIRECT_UNAUTHORIZED_URL: "redirect_unauthorized_url"

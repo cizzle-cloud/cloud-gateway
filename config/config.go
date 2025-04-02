@@ -27,10 +27,12 @@ type RateLimitConfig struct {
 }
 
 type PathConfig struct {
-	Method         string `json:"method" yaml:"method"`
-	Path           string `json:"path" yaml:"path"`
-	ProxyTarget    string `json:"proxy_target,omitempty" yaml:"proxy_target,omitempty"`
-	RedirectTarget string `json:"redirect_target,omitempty" yaml:"redirect_target,omitempty"`
+	Method          string   `json:"method" yaml:"method"`
+	Path            string   `json:"path" yaml:"path"`
+	Middleware      []string `json:"middleware,omitempty" yaml:"middleware,omitempty"`
+	MiddlewareGroup string   `json:"middleware_group,omitempty" yaml:"middleware_group,omitempty"`
+	ProxyTarget     string   `json:"proxy_target,omitempty" yaml:"proxy_target,omitempty"`
+	RedirectTarget  string   `json:"redirect_target,omitempty" yaml:"redirect_target,omitempty"`
 }
 
 type RouteConfig struct {
@@ -79,10 +81,26 @@ func loadEnvVar(key string, errorMsgs *[]string) string {
 	return value
 }
 
-func LoadConfig() (Config, errors.ErrorHandler) {
+type Env struct {
+	ConfigFilepath string
+	ConfigFileType string
+}
+
+func LoadEnv() (Env, errors.ErrorHandler) {
 	var errorMsgs []string
 	filepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
 	fileType := loadEnvVar("CONFIG_FILETYPE", &errorMsgs)
+	if len(errorMsgs) > 0 {
+		return Env{}, &errors.LoadConfigError{
+			Message: "error while loading Env Vars:\n" + strings.Join(errorMsgs, "\n"),
+		}
+	}
+
+	return Env{ConfigFilepath: filepath, ConfigFileType: fileType}, nil
+}
+
+func LoadConfig(filepath, fileType string) (Config, errors.ErrorHandler) {
+	var errorMsgs []string
 
 	if len(errorMsgs) > 0 {
 		return Config{}, &errors.LoadConfigError{
