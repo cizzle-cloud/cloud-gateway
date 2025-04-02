@@ -103,7 +103,7 @@ func (rr *RouteRegistry) ParseRoutes(cfg config.Config) {
 			continue
 		}
 
-		routes = append(routes, handlePathRoutes(r, resolvedMiddleware)...)
+		routes = append(routes, handlePathRoutes(r, cfg, resolvedMiddleware)...)
 	}
 
 	rr.Routes = routes
@@ -122,7 +122,7 @@ func handleProxyRoute(r config.RouteConfig, resolvedMiddleware []gin.HandlerFunc
 }
 
 // Handle individual paths under the prefix
-func handlePathRoutes(r config.RouteConfig, resolvedMiddleware []gin.HandlerFunc) []route.Route {
+func handlePathRoutes(r config.RouteConfig, cfg config.Config, resolvedRouteMiddleware []gin.HandlerFunc) []route.Route {
 	var pathRoutes []route.Route
 
 	for _, path := range r.Paths {
@@ -130,6 +130,16 @@ func handlePathRoutes(r config.RouteConfig, resolvedMiddleware []gin.HandlerFunc
 		if path.ProxyTarget != "" && path.RedirectTarget != "" {
 			log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Program will exit.")
 		}
+
+		resolvedPathMiddleware := append(
+			resolveMiddlewareGroup(path.MiddlewareGroup, cfg),
+			resolveMiddlewareList(path.Middleware, cfg)...,
+		)
+
+		resolvedMiddleware := append(
+			append([]gin.HandlerFunc{}, resolvedRouteMiddleware...),
+			resolvedPathMiddleware...,
+		)
 
 		fixedPath := path.Path
 		var pathRoute route.Route

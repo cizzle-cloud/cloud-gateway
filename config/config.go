@@ -27,10 +27,12 @@ type RateLimitConfig struct {
 }
 
 type PathConfig struct {
-	Method         string `json:"method" yaml:"method"`
-	Path           string `json:"path" yaml:"path"`
-	ProxyTarget    string `json:"proxy_target,omitempty" yaml:"proxy_target,omitempty"`
-	RedirectTarget string `json:"redirect_target,omitempty" yaml:"redirect_target,omitempty"`
+	Method          string   `json:"method" yaml:"method"`
+	Path            string   `json:"path" yaml:"path"`
+	Middleware      []string `json:"middleware,omitempty" yaml:"middleware,omitempty"`
+	MiddlewareGroup string   `json:"middleware_group,omitempty" yaml:"middleware_group,omitempty"`
+	ProxyTarget     string   `json:"proxy_target,omitempty" yaml:"proxy_target,omitempty"`
+	RedirectTarget  string   `json:"redirect_target,omitempty" yaml:"redirect_target,omitempty"`
 }
 
 type RouteConfig struct {

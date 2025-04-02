@@ -21,32 +21,11 @@ func DomainRoutesAreEqual(expected, actual route.DomainRoute) bool {
 	return c1 && c2
 }
 
-func TestParse(t *testing.T) {
+func TestRouteParsing(t *testing.T) {
 	cfg, _ := config.LoadConfig("./route_config.yaml", "yaml")
 
 	rr := &RouteRegistry{}
 	rr.FromConfig(cfg)
-
-	// fw1 := config.RateLimitConfig {
-	// 	Ttl: "8h",
-	// 	CleanupInterval: "2h",
-	// 	Algorithm: "fixed_window_counter",
-	// 	Limit: 10,
-	// 	WindowSize: "5s",
-	// }
-
-	// tb1 := config.RateLimitConfig{
-	// 	Ttl:             8 * time.Hour,
-	// 	CleanupInterval: 2 * time.Hour,
-	// 	Algorithm:       "token_bucket",
-	// 	Capacity:        10,
-	// 	RefillTokens:    10,
-	// 	RefillInterval:  5 * time.Second,
-	// }
-
-	// algo, rl := ParseRateLimitCfg(tb1)
-
-	// handler := middleware.NewRateLimitMiddleware(algo, rl)
 
 	route1 := route.Route{
 		Prefix:       "/foo",
@@ -117,4 +96,55 @@ func TestParse(t *testing.T) {
 			t.Errorf("Structs are not equal:\nExpected: %+v\nActual: %+v", expected, actual)
 		}
 	}
+}
+
+func TestMiddlewareParsing(t *testing.T) {
+	cfg, _ := config.LoadConfig("./route_config.yaml", "yaml")
+
+	rr := &RouteRegistry{}
+	rr.FromConfig(cfg)
+
+	expectedRouteMiddleware := [8]int{1, 2, 1, 0, 0, 0}
+
+	expectedDomainMiddleware := [2]int{1, 2}
+
+	for idx, r := range rr.Routes {
+		if len(r.Middleware) != expectedRouteMiddleware[idx] {
+			t.Errorf("middleware number is not correct:\nExpected: %+v\nActual: %+v", len(r.Middleware), expectedRouteMiddleware[idx])
+		}
+	}
+
+	for idx, dr := range rr.DomainRoutes {
+		if len(dr.Middleware) != expectedDomainMiddleware[idx] {
+			t.Errorf("middleware number is not correct:\nExpected: %+v\nActual: %+v", len(dr.Middleware), expectedDomainMiddleware[idx])
+		}
+
+	}
+
+	// for idx, expected := range expectedMiddlewareNumbers {
+	// if len(rr.Routes[idx].Middleware) != expected {
+	//
+	// }
+	// }
+
+	// fw1 := config.RateLimitConfig{
+	// 	Ttl:             8 * time.Hour,
+	// 	CleanupInterval: 2 * time.Hour,
+	// 	Algorithm:       "fixed_window_counter",
+	// 	Limit:           10,
+	// 	WindowSize:      5 * time.Second,
+	// }
+
+	// tb1 := config.RateLimitConfig{
+	// 	Ttl:             8 * time.Hour,
+	// 	CleanupInterval: 2 * time.Hour,
+	// 	Algorithm:       "token_bucket",
+	// 	Capacity:        10,
+	// 	RefillTokens:    10,
+	// 	RefillInterval:  5 * time.Second,
+	// }
+
+	// algo, rl := ParseRateLimitCfg(tb1)
+
+	// handler := middleware.NewRateLimitMiddleware(algo, rl)
 }

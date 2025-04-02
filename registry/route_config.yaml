@@ -21,6 +21,8 @@ routes:
       - tb_1
 
   - prefix: "/foo"
+    middleware:
+      - tb_1
     paths:
       - method: "GET"
         path: "/docs/todos"
