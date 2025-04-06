@@ -26,5 +26,15 @@ func main() {
 	rr.FromConfig(cfg)
 	rr.RegisterRoutes(r)
 	rr.RegisterDomainRoutes(r)
-	r.Run(fmt.Sprintf("%s:%s", cfg.Env.Host, cfg.Env.Port))
+
+	addr := fmt.Sprintf("%s:%s", cfg.Env.Host, cfg.Env.Port)
+	certFilepath := cfg.Env.CertFilepath
+	keyFilepath := cfg.Env.KeyFilepath
+	if certFilepath == "" || keyFilepath == "" {
+		r.Run(addr)
+	} else {
+
+		r.RunTLS(addr, certFilepath, keyFilepath)
+	}
+
 }
