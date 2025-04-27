@@ -185,7 +185,7 @@ func getRouteHandler(route route.Route) (gin.HandlerFunc, int8) {
 	switch {
 	case route.Prefix == "" || route.Prefix == "/":
 		return func(c *gin.Context) {
-			handlers.ProxyRequestHandler(c, route.ProxyTarget, c.Param("path"))
+			handlers.BaseProxyRequestHandler(c, route.ProxyTarget)
 		}, RouteNoRoute
 
 	case route.ProxyTarget != "":

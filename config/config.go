@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -55,6 +56,8 @@ type DomainRouteConfig struct {
 type EnvConfig struct {
 	Host                    string `json:"HOST" yaml:"HOST"`
 	Port                    string `json:"PORT" yaml:"PORT"`
+	CertFilepath            string `json:"CERT_FILEPATH" yaml:"CERT_FILEPATH"`
+	KeyFilepath             string `json:"KEY_FILEPATH" yaml:"KEY_FILEPATH"`
 	ValidateAuthURL         string `json:"VALIDATE_AUTH_URL" yaml:"VALIDATE_AUTH_URL"`
 	RedirectUnauthorizedURL string `json:"REDIRECT_UNAUTHORIZED_URL" yaml:"REDIRECT_UNAUTHORIZED_URL"`
 }
@@ -88,15 +91,18 @@ type Env struct {
 
 func LoadEnv() (Env, errors.ErrorHandler) {
 	var errorMsgs []string
-	filepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
-	fileType := loadEnvVar("CONFIG_FILETYPE", &errorMsgs)
+
+	configFilepath := loadEnvVar("CONFIG_FILEPATH", &errorMsgs)
+	fileExt := filepath.Ext(configFilepath)
+	fileType := strings.TrimPrefix(fileExt, ".")
+
 	if len(errorMsgs) > 0 {
 		return Env{}, &errors.LoadConfigError{
 			Message: "error while loading Env Vars:\n" + strings.Join(errorMsgs, "\n"),
 		}
 	}
 
-	return Env{ConfigFilepath: filepath, ConfigFileType: fileType}, nil
+	return Env{ConfigFilepath: configFilepath, ConfigFileType: fileType}, nil
 }
 
 func LoadConfig(filepath, fileType string) (Config, errors.ErrorHandler) {
