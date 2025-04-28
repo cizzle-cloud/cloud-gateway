@@ -22,19 +22,18 @@
 #     method: "GET"
 #     proxy_target: "https://dummyjson.com"
 
-
 # REMOVE METHOD FROM HGERE
 
-  - prefix: "/redirect-dummy"
-    method: "GET"
-    redirect_target: "https://dummyjson.com/docs/todos"
+# - prefix: "/redirect-dummy"
+#   method: "GET"
+#   redirect_target: "https://dummyjson.com/docs/todos"
 
-  - prefix: "/redirect-dummy-path"
-    paths:
-      - path: "/docs"
-        redirect_target: "https://dummyjson.com/docs"
-      - path: "/docs/todos"
-        redirect_target: "https://dummyjson.com/docs/todos"
+# - prefix: "/redirect-dummy-path"
+#   paths:
+#     - path: "/docs"
+#       redirect_target: "https://dummyjson.com/docs"
+#     - path: "/docs/todos"
+#       redirect_target: "https://dummyjson.com/docs/todos"
 
 rate_limiters:
   fw_1:
@@ -50,6 +49,18 @@ rate_limiters:
     capacity: 10
     refill_tokens: 10
     refill_interval: "5s"
+
+forward_auth:
+  jwt:
+    url: "https://auth.cizzle.cloud/access-token/verify"
+    timeout: "5s"
+    request_headers: ["Authorization"]
+    trust_forward_header: true
+    forward_body: true
+
+  session:
+    url: "https://auth.cizzle.cloud/validate"
+    timeout: "5s"
 
 domain_routes:
   - domain: "www.localhost.com"

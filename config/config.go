@@ -62,13 +62,23 @@ type EnvConfig struct {
 	RedirectUnauthorizedURL string `json:"REDIRECT_UNAUTHORIZED_URL" yaml:"REDIRECT_UNAUTHORIZED_URL"`
 }
 
-type AuthConfig struct{}
+type ForwardAuthConfig struct {
+	Url                  string        `json:"url" yaml:"url"`
+	Method               string        `json:"method" yaml:"method"`
+	Timeout              time.Duration `json:"timeout" yaml:"timeout"`
+	TrustForwardHeader   bool          `json:"trust_forward_header" yaml:"trust_forward_header"`
+	ForwardBody          bool          `json:"forward_body" yaml:"forward_body"`
+	RequestHeaders       []string      `json:"request_headers" yaml:"request_headers"`
+	ResponseHeaders      []string      `json:"response_headers" yaml:"response_headers"`
+	AddCookiesToRequest  []string      `json:"add_cookies_to_request" yaml:"add_cookies_to_request"`
+	AddCookiesToResponse []string      `json:"add_cookies_to_response" yaml:"add_cookies_to_response"`
+}
 
 type NoCachePolicyConfig struct{}
 
 type Config struct {
 	RateLimiters     map[string]RateLimitConfig       `json:"rate_limiters" yaml:"rate_limiters"`
-	Auth             map[string]AuthConfig            `json:"auth" yaml:"auth"`
+	ForwardAuth      map[string]ForwardAuthConfig     `json:"forward_auth" yaml:"forward_auth"`
 	NoCachePolicies  map[string]NoCachePolicyConfig   `json:"no_cache_policies" yaml:"no_cache_policies"`
 	MiddlewareGroups map[string]MiddlewareGroupConfig `json:"middleware_groups" yaml:"middleware_groups"`
 	Routes           []RouteConfig                    `json:"routes" yaml:"routes"`

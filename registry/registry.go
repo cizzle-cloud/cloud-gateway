@@ -38,8 +38,8 @@ func resolveMiddleware(mw string, cfg config.Config) gin.HandlerFunc {
 	if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
 		algo, rl := ParseRateLimitCfg(rateLimitCfg)
 		handler = middleware.NewRateLimitMiddleware(algo, rl)
-	} else if authCfg, ok := cfg.Auth[mw]; ok {
-		handler = middleware.NewAuthMiddleware(authCfg)
+	} else if forwardAuthCfg, ok := cfg.ForwardAuth[mw]; ok {
+		handler = middleware.NewForwardAuthMiddleware(forwardAuthCfg)
 	} else if noCachePolicyCfg, ok := cfg.NoCachePolicies[mw]; ok {
 		handler = middleware.NewNoCacheMiddleware(noCachePolicyCfg)
 	} else {
