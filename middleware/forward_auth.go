@@ -4,6 +4,7 @@ import (
 	"api_gateway/config"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -32,7 +33,7 @@ func NewForwardAuthMiddleware(cfg config.ForwardAuthConfig) gin.HandlerFunc {
 		}
 
 		// Prepare auth request
-		authReq, err := http.NewRequestWithContext(ctx, c.Request.Method, cfg.Url, body)
+		authReq, err := http.NewRequestWithContext(ctx, cfg.Method, cfg.Url, body)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "failed to create auth request"})
 			return
@@ -70,7 +71,7 @@ func NewForwardAuthMiddleware(cfg config.ForwardAuthConfig) gin.HandlerFunc {
 		client := &http.Client{}
 		resp, err := client.Do(authReq)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "auth service unreachable"})
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": fmt.Sprintf("auth service unreachable: %v", err)})
 			return
 		}
 		defer resp.Body.Close()
@@ -116,6 +117,5 @@ func NewForwardAuthMiddleware(cfg config.ForwardAuthConfig) gin.HandlerFunc {
 		}
 
 		c.Next()
-
 	}
 }
