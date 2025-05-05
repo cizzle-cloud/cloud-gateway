@@ -23,16 +23,21 @@ type RouteRegistry struct {
 	DomainRoutes []route.DomainRoute
 }
 
-func (rr *RouteRegistry) FromConfig(cfg config.Config) {
+func (rr *RouteRegistry) FromConfig(cfg *config.Config) {
 	rr.ParseRoutes(cfg)
 	rr.ParseDomainRoutes(cfg)
 }
 
-func resolveMiddlewareGroup(middlewareGroup string, cfg config.Config) []gin.HandlerFunc {
-	return resolveMiddlewareList(cfg.MiddlewareGroups[middlewareGroup], cfg)
+func resolveMiddlewareGroup(middlewareGroup string, cfg *config.Config) []gin.HandlerFunc {
+	grp, ok := cfg.MiddlewareGroups[middlewareGroup]
+	if !ok {
+		return nil
+	}
+
+	return resolveMiddlewareList(*grp, cfg)
 }
 
-func resolveMiddleware(mw string, cfg config.Config) gin.HandlerFunc {
+func resolveMiddleware(mw string, cfg *config.Config) gin.HandlerFunc {
 	var handler gin.HandlerFunc
 
 	if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
@@ -49,7 +54,7 @@ func resolveMiddleware(mw string, cfg config.Config) gin.HandlerFunc {
 	return handler
 }
 
-func resolveMiddlewareList(mwl []string, cfg config.Config) []gin.HandlerFunc {
+func resolveMiddlewareList(mwl []string, cfg *config.Config) []gin.HandlerFunc {
 	var handlers []gin.HandlerFunc
 
 	for _, mw := range mwl {
@@ -59,7 +64,7 @@ func resolveMiddlewareList(mwl []string, cfg config.Config) []gin.HandlerFunc {
 	return handlers
 }
 
-func ParseRateLimitCfg(cfg config.RateLimitConfig) (*ratelimiter.RateLimiter, ratelimiter.RateLimitAlgo) {
+func ParseRateLimitCfg(cfg *config.RateLimitConfig) (*ratelimiter.RateLimiter, ratelimiter.RateLimitAlgo) {
 	var algo ratelimiter.RateLimitAlgo
 
 	switch algoType := cfg.Algorithm; algoType {
@@ -76,7 +81,7 @@ func ParseRateLimitCfg(cfg config.RateLimitConfig) (*ratelimiter.RateLimiter, ra
 	return rl, algo
 }
 
-func (rr *RouteRegistry) ParseRoutes(cfg config.Config) {
+func (rr *RouteRegistry) ParseRoutes(cfg *config.Config) {
 	var routes []route.Route
 
 	for _, r := range cfg.Routes {
@@ -110,7 +115,7 @@ func (rr *RouteRegistry) ParseRoutes(cfg config.Config) {
 }
 
 // Handle Proxy Target for prefix routes where no specific paths are defined
-func handleProxyRoute(r config.RouteConfig, resolvedMiddleware []gin.HandlerFunc) route.Route {
+func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []gin.HandlerFunc) route.Route {
 	if r.Prefix == "" || r.Prefix == "/" {
 		if r.Method != "" {
 			log.Fatal("[ERROR] Base route with proxy target has method defined.")
@@ -122,7 +127,7 @@ func handleProxyRoute(r config.RouteConfig, resolvedMiddleware []gin.HandlerFunc
 }
 
 // Handle individual paths under the prefix
-func handlePathRoutes(r config.RouteConfig, cfg config.Config, resolvedRouteMiddleware []gin.HandlerFunc) []route.Route {
+func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMiddleware []gin.HandlerFunc) []route.Route {
 	var pathRoutes []route.Route
 
 	for _, path := range r.Paths {
@@ -159,7 +164,7 @@ func handlePathRoutes(r config.RouteConfig, cfg config.Config, resolvedRouteMidd
 	return pathRoutes
 }
 
-func (rr *RouteRegistry) ParseDomainRoutes(cfg config.Config) {
+func (rr *RouteRegistry) ParseDomainRoutes(cfg *config.Config) {
 	var domainRoutes []route.DomainRoute
 
 	for _, r := range cfg.DomainRoutes {

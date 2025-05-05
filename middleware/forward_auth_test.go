@@ -80,7 +80,7 @@ func TestForwardAuthMiddlewareAuthorized(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	r.Use(NewForwardAuthMiddleware(cfg))
+	r.Use(NewForwardAuthMiddleware(&cfg))
 	r.GET("/protected", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "OK"})
 	})
@@ -185,7 +185,7 @@ func TestForwardAuthMiddlewareUnauthorized(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	r.Use(NewForwardAuthMiddleware(cfg))
+	r.Use(NewForwardAuthMiddleware(&cfg))
 	r.GET("/protected", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "OK"})
 	})
@@ -241,7 +241,7 @@ func TestForwardAuthMiddlewareTimeout(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	r.Use(NewForwardAuthMiddleware(cfg))
+	r.Use(NewForwardAuthMiddleware(&cfg))
 	r.GET("/protected", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "OK"})
 	})

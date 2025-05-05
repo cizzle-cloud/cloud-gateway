@@ -57,7 +57,7 @@ domain_routes:
       - tb_1
 
 env:
-  PORT: "80"
+  PORT: 80
   HOST: "0.0.0.0"
   VALIDATE_AUTH_URL: "validate_auth_url"
   REDIRECT_UNAUTHORIZED_URL: "redirect_unauthorized_url"

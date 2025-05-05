@@ -22,8 +22,10 @@ func DomainRoutesAreEqual(expected, actual route.DomainRoute) bool {
 }
 
 func TestRouteParsing(t *testing.T) {
-	cfg, _ := config.LoadConfig("./route_config.yaml", "yaml")
-
+	cfg, err := config.LoadConfig("./route_config.yaml", "yaml")
+	if err != nil {
+		t.Logf("error: %v", err)
+	}
 	rr := &RouteRegistry{}
 	rr.FromConfig(cfg)
 

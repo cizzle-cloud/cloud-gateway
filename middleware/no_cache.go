@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewNoCacheMiddleware(noCachePolicy config.NoCachePolicyConfig) gin.HandlerFunc {
+func NewNoCacheMiddleware(noCachePolicy *config.NoCachePolicyConfig) gin.HandlerFunc {
 	return func(c *gin.Context) { log.Println(noCachePolicy) }
 }
 

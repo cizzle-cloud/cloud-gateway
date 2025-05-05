@@ -27,7 +27,7 @@ func main() {
 	rr.RegisterRoutes(r)
 	rr.RegisterDomainRoutes(r)
 
-	addr := fmt.Sprintf("%s:%s", cfg.Env.Host, cfg.Env.Port)
+	addr := fmt.Sprintf("%s:%v", cfg.Env.Host, cfg.Env.Port)
 	certFilepath := cfg.Env.CertFilepath
 	keyFilepath := cfg.Env.KeyFilepath
 	if certFilepath == "" || keyFilepath == "" {

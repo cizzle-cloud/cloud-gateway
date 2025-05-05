@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewForwardAuthMiddleware(cfg config.ForwardAuthConfig) gin.HandlerFunc {
+func NewForwardAuthMiddleware(cfg *config.ForwardAuthConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		// Create context with timeout
