@@ -4,7 +4,6 @@ import (
 	"api_gateway/errors"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,6 +84,15 @@ type Config struct {
 	Env              *EnvConfig                        `json:"env" yaml:"env"`
 }
 
+func isValidMethod(m string) bool {
+	switch m {
+	case "GET", "POST", "PUT", "DELETE", "PATCH":
+		return true
+	default:
+		return false
+	}
+}
+
 func (cfg *Config) validate() string {
 	for _, routeCfg := range cfg.Routes {
 		if errString := routeCfg.validate(); errString != "" {
@@ -117,23 +125,60 @@ func (cfg *Config) validate() string {
 	return ""
 }
 
+type Validatable interface {
+	validate() string
+}
+
 func (cfg *RouteConfig) validate() string {
 	if cfg.Prefix == "" {
-		return "prefix is missing for proxy route"
+		return "prefix is missing for base route"
 	}
 
-	if cfg.ProxyTarget == "" {
-		return "proxy target url is missing for proxy route."
+	if cfg.ProxyTarget != "" && cfg.RedirectTarget != "" {
+		return "base route with both 'proxy_target' and 'redirect_target' defined is not allowed"
+	}
+
+	for _, pathCfg := range cfg.Paths {
+		if pathCfg.ProxyTarget != "" && pathCfg.RedirectTarget != "" {
+			return "path route with both 'proxy_target' and 'redirect_target' defined is not allowed"
+		}
+
+		if pathCfg.Path == "" {
+			return fmt.Sprintf("path route under prefix '%s' is missing a 'path'", cfg.Prefix)
+		}
+	}
+
+	if len(cfg.Paths) != 0 {
+		if cfg.ProxyTarget != "" {
+			return "base route with defined 'proxy_target' url is not allowed to have paths"
+		} else if cfg.RedirectTarget != "" {
+			return "base route with defined 'redirect_target' url is not allowed to have paths"
+		}
+	}
+
+	if cfg.ProxyTarget == "" && cfg.RedirectTarget == "" {
+		if len(cfg.Paths) == 0 {
+			return "'proxy_target' or 'redirect_target' url is missing for route with no paths"
+		}
+
+		for _, pathCfg := range cfg.Paths {
+			if pathCfg.ProxyTarget == "" && pathCfg.RedirectTarget == "" {
+				return "found base route with path route that have both no 'proxy_target' or 'redirect_target' defined"
+			}
+		}
 	}
 
 	if len(cfg.Paths) == 0 && cfg.Method == "" {
-		return "HTTP method is missing for a route with no paths."
+		return "http method is missing for a route with no paths"
 	}
 
 	if cfg.Method != "" {
+		if !isValidMethod(cfg.Method) {
+			return fmt.Sprintf("found invalid http method '%s' in a route", cfg.Method)
+		}
 		for _, pathCfg := range cfg.Paths {
 			if pathCfg.Method != "" {
-				return "HTTP method should not be specified both at route and path level."
+				return "http method should not be specified both at route and path level"
 			}
 		}
 	}
@@ -141,7 +186,14 @@ func (cfg *RouteConfig) validate() string {
 	if cfg.Method == "" {
 		for _, pathCfg := range cfg.Paths {
 			if pathCfg.Method == "" {
-				return fmt.Sprintf("path '%s' has no HTTP method and its base route also has no method", pathCfg)
+				return fmt.Sprintf(
+					"path '%s' has no http method and its base route also has no method",
+					pathCfg.Path,
+				)
+			}
+
+			if !isValidMethod(pathCfg.Method) {
+				return fmt.Sprintf("found invalid http method '%s' in a route path", pathCfg.Method)
 			}
 		}
 	}
@@ -151,11 +203,11 @@ func (cfg *RouteConfig) validate() string {
 
 func (cfg *DomainRouteConfig) validate() string {
 	if cfg.Domain == "" {
-		return "domain is missing for domain route."
+		return "field 'domain' is missing for domain route"
 	}
 
 	if cfg.ProxyTarget == "" {
-		return "proxy target url is missing for domain route."
+		return "field 'proxy_target' is missing for domain route"
 	}
 
 	return ""
@@ -164,48 +216,48 @@ func (cfg *DomainRouteConfig) validate() string {
 func (cfg *RateLimitConfig) validate() string {
 	switch algo := cfg.Algorithm; algo {
 	case "":
-		return "algorithm is not specified for rate limiter."
+		return "'algorithm' field is not specified for rate limiter"
 	case "fixed_window_counter":
 		if cfg.Capacity != 0 {
-			return "wrong option 'capacity' is specified for rate limiter 'fixed_window_counter'."
+			return "wrong option 'capacity' is specified for rate limiter 'fixed_window_counter'"
 		}
 
 		if cfg.RefillTokens != 0 {
-			return "wrong option 'refill_tokens' is specified for rate limiter 'fixed_window_counter'."
+			return "wrong option 'refill_tokens' is specified for rate limiter 'fixed_window_counter'"
 		}
 
 		if cfg.RefillInterval != 0 {
-			return "wrong option 'refill_interval' is specified for rate limiter 'fixed_window_counter'."
+			return "wrong option 'refill_interval' is specified for rate limiter 'fixed_window_counter'"
 		}
 
 		if cfg.Limit <= 0 {
-			return "'limit' must be a positive integer."
+			return "'limit' must be a positive integer"
 		}
 	case "token_bucket":
 		if cfg.Limit != 0 {
-			return "wrong option 'limit' is specified for rate limiter 'token_bucket'."
+			return "wrong option 'limit' is specified for rate limiter 'token_bucket'"
 		}
 
 		if cfg.WindowSize != 0 {
-			return "wrong option 'window_size' is specified for rate limiter 'token_bucket'."
+			return "wrong option 'window_size' is specified for rate limiter 'token_bucket'"
 		}
 
 		if cfg.Capacity <= 0 {
-			return "'capacity' must be a positive integer."
+			return "'capacity' must be a positive integer"
 		}
 
 		if cfg.RefillTokens <= 0 {
-			return "'refill_tokens' must be a positive integer."
+			return "'refill_tokens' must be a positive integer"
 		}
 	default:
-		return fmt.Sprintf("unknown rate limit algorithm %s specified.", algo)
+		return fmt.Sprintf("unknown rate limit algorithm '%s' specified", algo)
 	}
 	return ""
 }
 
 func (cfg *ForwardAuthConfig) validate() string {
 	if cfg.Url == "" {
-		return "required parameter 'url' is missing for forward auth middleware."
+		return "required field 'url' is missing for forward auth middleware"
 	}
 
 	return ""
@@ -213,7 +265,7 @@ func (cfg *ForwardAuthConfig) validate() string {
 
 func (cfg *EnvConfig) validate() string {
 	if cfg.Port < 0 || cfg.Port > 65535 {
-		return "invalid 'PORT'. Port number must be in the range of 0-65535."
+		return "invalid 'PORT'. Port number must be in the range of 0-65535"
 	}
 	return ""
 }
@@ -230,14 +282,6 @@ func (cfg *Config) setDefaults() {
 	cfg.Env.setDefaults()
 }
 
-func (cfg *RouteConfig) setDefaults() {
-	for _, pathCfg := range cfg.Paths {
-		if pathCfg.Method == "" {
-			pathCfg.Method = cfg.Method
-		}
-	}
-}
-
 func (cfg *ForwardAuthConfig) setDefaults() {
 	if cfg.Method == "" {
 		cfg.Method = "GET"
@@ -245,6 +289,14 @@ func (cfg *ForwardAuthConfig) setDefaults() {
 
 	if cfg.Timeout == 0 {
 		cfg.Timeout = 5 * time.Second
+	}
+}
+
+func (cfg *RouteConfig) setDefaults() {
+	for _, pathCfg := range cfg.Paths {
+		if pathCfg.Method == "" {
+			pathCfg.Method = cfg.Method
+		}
 	}
 }
 
@@ -320,14 +372,11 @@ func LoadConfig(filepath, fileType string) (*Config, errors.ErrorHandler) {
 	}
 
 	cfg.setDefaults()
+
 	if errString := cfg.validate(); errString != "" {
 		return &Config{}, &errors.LoadConfigError{
 			Message: errString,
 		}
-	}
-
-	for k, val := range cfg.ForwardAuth {
-		log.Println(k, val)
 	}
 
 	return &cfg, nil

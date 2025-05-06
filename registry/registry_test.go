@@ -54,11 +54,13 @@ func TestRouteParsing(t *testing.T) {
 
 	route4 := route.Route{
 		Prefix:         "/foobar",
+		Method:         "GET",
 		RedirectTarget: "https://xyzzy.com",
 	}
 
 	route5 := route.Route{
 		Prefix:         "/thud",
+		Method:         "GET",
 		RelativePath:   "/thud/foo",
 		RedirectTarget: "https://foo.com",
 		FixedPath:      "/foo",
@@ -66,6 +68,7 @@ func TestRouteParsing(t *testing.T) {
 
 	route6 := route.Route{
 		Prefix:         "/thud",
+		Method:         "GET",
 		RelativePath:   "/thud/bar",
 		RedirectTarget: "https://bar.com",
 		FixedPath:      "/bar",

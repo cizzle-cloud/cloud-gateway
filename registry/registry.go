@@ -72,8 +72,6 @@ func ParseRateLimitCfg(cfg *config.RateLimitConfig) (*ratelimiter.RateLimiter, r
 		algo = ratelimiter.NewFixedWindowCounter(cfg.Limit, cfg.WindowSize)
 	case "token_bucket":
 		algo = ratelimiter.NewTokenBucket(cfg.Capacity, cfg.RefillTokens, cfg.RefillInterval)
-	default:
-		log.Fatalf("[ERROR] Unknown / Unsupported rate limit algorithm: %s.", algo)
 	}
 
 	rl := ratelimiter.NewRateLimiter(cfg.Ttl, cfg.CleanupInterval)
@@ -85,10 +83,6 @@ func (rr *RouteRegistry) ParseRoutes(cfg *config.Config) {
 	var routes []route.Route
 
 	for _, r := range cfg.Routes {
-
-		if r.ProxyTarget != "" && r.RedirectTarget != "" {
-			log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Program will exit.")
-		}
 
 		resolvedMiddleware := append(
 			resolveMiddlewareGroup(r.MiddlewareGroup, cfg),
@@ -132,10 +126,6 @@ func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMi
 
 	for _, path := range r.Paths {
 
-		if path.ProxyTarget != "" && path.RedirectTarget != "" {
-			log.Fatal("[ERROR] Both Proxy and Redirect Target is defined and this is not allowed. Program will exit.")
-		}
-
 		resolvedPathMiddleware := append(
 			resolveMiddlewareGroup(path.MiddlewareGroup, cfg),
 			resolveMiddlewareList(path.Middleware, cfg)...,
@@ -168,10 +158,6 @@ func (rr *RouteRegistry) ParseDomainRoutes(cfg *config.Config) {
 	var domainRoutes []route.DomainRoute
 
 	for _, r := range cfg.DomainRoutes {
-		if r.ProxyTarget == "" || r.Domain == "" {
-			log.Fatal("[ERROR] Domain or ProxyTarget is missing. Program will exit.")
-		}
-
 		resolvedMiddleware := append(
 			resolveMiddlewareGroup(r.MiddlewareGroup, cfg),
 			resolveMiddlewareList(r.Middleware, cfg)...,
@@ -219,7 +205,6 @@ func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 		case RouteNoRoute:
 			r.NoRoute(handler)
 		case RouteInvalidRoute:
-			// TODO Understand fatal vs panic
 			log.Fatal("[ERROR] Invalid/Unknown route configuration")
 		}
 	}
