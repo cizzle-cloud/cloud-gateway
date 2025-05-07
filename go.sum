@@ -3,10 +3,6 @@ github.com/bytedance/sonic v1.12.3/go.mod h1:B8Gt/XvtZ3Fqj+iSKMypzymZxw/FVwgIGKz
 github.com/bytedance/sonic/loader v0.1.1/go.mod h1:ncP89zfokxS5LZrJxl5z0UJcsk4M4yY2JpfqGeCtNLU=
 github.com/bytedance/sonic/loader v0.2.1 h1:1GgorWTqf12TA8mma4DDSbaQigE2wOgQo7iCjjJv3+E=
 github.com/bytedance/sonic/loader v0.2.1/go.mod h1:ncP89zfokxS5LZrJxl5z0UJcsk4M4yY2JpfqGeCtNLU=
-github.com/cizzle-cloud/rate-limiter v0.0.0-20250317134136-a7eef4f70eb1 h1:5AeY5sfmo34xGLP61TL2yifLvL0aKMYHcGXgT+T0aPM=
-github.com/cizzle-cloud/rate-limiter v0.0.0-20250317134136-a7eef4f70eb1/go.mod h1:vQ2gi16m3nyQbOGE3V3UNPW7HymAdtDjexttGlnAysw=
-github.com/cizzle-cloud/rate-limiter v0.0.0-20250317171934-fb03af6d196c h1:owj8apX+tpGMfuP5oXZz7d8LEEh/WQhCg/kMMw7MiNU=
-github.com/cizzle-cloud/rate-limiter v0.0.0-20250317171934-fb03af6d196c/go.mod h1:vQ2gi16m3nyQbOGE3V3UNPW7HymAdtDjexttGlnAysw=
 github.com/cizzle-cloud/rate-limiter v0.0.0-20250317173909-7e2124923c81 h1:Zh/aGN+XZYpi2nDGEMyn7KG4b7xTtYtrzv7Z7tlmgyk=
 github.com/cizzle-cloud/rate-limiter v0.0.0-20250317173909-7e2124923c81/go.mod h1:vQ2gi16m3nyQbOGE3V3UNPW7HymAdtDjexttGlnAysw=
 github.com/cloudwego/base64x v0.1.4 h1:jwCgWpFanWmN8xoIUHa2rtzmkd5J2plF/dnLS6Xd/0Y=

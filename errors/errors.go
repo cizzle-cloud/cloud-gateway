@@ -35,5 +35,5 @@ func (e *LoadConfigError) Error() string {
 }
 
 func (e *LoadConfigError) Handle() {
-	log.Fatalf("Could not load config: %s", e.Message)
+	log.Fatalf("[ERROR] Could not load config: %s", e.Message)
 }

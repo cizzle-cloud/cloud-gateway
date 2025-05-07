@@ -22,8 +22,10 @@ func DomainRoutesAreEqual(expected, actual route.DomainRoute) bool {
 }
 
 func TestRouteParsing(t *testing.T) {
-	cfg, _ := config.LoadConfig("./route_config.yaml", "yaml")
-
+	cfg, err := config.LoadConfig("./route_config.yaml", "yaml")
+	if err != nil {
+		t.Logf("error: %v", err)
+	}
 	rr := &RouteRegistry{}
 	rr.FromConfig(cfg)
 
@@ -52,11 +54,13 @@ func TestRouteParsing(t *testing.T) {
 
 	route4 := route.Route{
 		Prefix:         "/foobar",
+		Method:         "GET",
 		RedirectTarget: "https://xyzzy.com",
 	}
 
 	route5 := route.Route{
 		Prefix:         "/thud",
+		Method:         "GET",
 		RelativePath:   "/thud/foo",
 		RedirectTarget: "https://foo.com",
 		FixedPath:      "/foo",
@@ -64,6 +68,7 @@ func TestRouteParsing(t *testing.T) {
 
 	route6 := route.Route{
 		Prefix:         "/thud",
+		Method:         "GET",
 		RelativePath:   "/thud/bar",
 		RedirectTarget: "https://bar.com",
 		FixedPath:      "/bar",
