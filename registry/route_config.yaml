@@ -37,15 +37,18 @@ routes:
   - prefix: "/foobar"
     method: "GET"
     redirect_target: "https://xyzzy.com"
+    redirect_code: 308
 
   - prefix: "/thud"
     paths:
       - path: "/foo"
         method: "GET"
         redirect_target: "https://foo.com"
+        redirect_code: 302
       - path: "/bar"
         method: "GET"
         redirect_target: "https://bar.com"
+        redirect_code: 307
 
 domain_routes:
   - domain: "www.example.com"

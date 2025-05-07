@@ -4,6 +4,7 @@ import (
 	"api_gateway/errors"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +35,7 @@ type PathConfig struct {
 	MiddlewareGroup string   `json:"middleware_group" yaml:"middleware_group"`
 	ProxyTarget     string   `json:"proxy_target" yaml:"proxy_target"`
 	RedirectTarget  string   `json:"redirect_target" yaml:"redirect_target"`
+	RedirectCode    int      `json:"redirect_code" yaml:"redirect_code"`
 }
 
 type RouteConfig struct {
@@ -43,6 +45,7 @@ type RouteConfig struct {
 	MiddlewareGroup string        `json:"middleware_group" yaml:"middleware_group"`
 	ProxyTarget     string        `json:"proxy_target" yaml:"proxy_target"`
 	RedirectTarget  string        `json:"redirect_target" yaml:"redirect_target"`
+	RedirectCode    int           `json:"redirect_code" yaml:"redirect_code"`
 	Paths           []*PathConfig `json:"paths" yaml:"paths"`
 }
 
@@ -93,6 +96,18 @@ func isValidMethod(m string) bool {
 	}
 }
 
+func isValidRedirectCode(code int) bool {
+	switch code {
+	case http.StatusFound,
+		http.StatusSeeOther,
+		http.StatusTemporaryRedirect,
+		http.StatusPermanentRedirect:
+		return true
+	default:
+		return false
+	}
+}
+
 func (cfg *Config) validate() string {
 	for _, routeCfg := range cfg.Routes {
 		if errString := routeCfg.validate(); errString != "" {
@@ -134,13 +149,38 @@ func (cfg *RouteConfig) validate() string {
 		return "prefix is missing for base route"
 	}
 
-	if cfg.ProxyTarget != "" && cfg.RedirectTarget != "" {
-		return "base route with both 'proxy_target' and 'redirect_target' defined is not allowed"
+	if cfg.ProxyTarget != "" {
+		if cfg.RedirectTarget != "" {
+			return "base route with both 'proxy_target' and 'redirect_target' defined is not allowed"
+		}
+
+		if cfg.RedirectCode != 0 {
+			return "base route with 'proxy_target' and 'redirect_code' defined is not allowed"
+		}
+	}
+
+	if cfg.RedirectCode != 0 {
+		if cfg.RedirectTarget == "" {
+			return "'redirect_code' defined without a corresponding 'redirect_target' in base route"
+		}
+		if !isValidRedirectCode(cfg.RedirectCode) {
+			return fmt.Sprintf("invalid 'redirect_code' %d for base route", cfg.RedirectCode)
+		}
+	} else {
+		if cfg.RedirectTarget != "" {
+			return "defining 'redirect_target' in base route without defining 'redirect_code' is not allowed"
+		}
 	}
 
 	for _, pathCfg := range cfg.Paths {
-		if pathCfg.ProxyTarget != "" && pathCfg.RedirectTarget != "" {
-			return "path route with both 'proxy_target' and 'redirect_target' defined is not allowed"
+		if pathCfg.ProxyTarget != "" {
+			if pathCfg.RedirectTarget != "" {
+				return "path route with both 'proxy_target' and 'redirect_target' defined is not allowed"
+			}
+
+			if pathCfg.RedirectCode != 0 {
+				return "path route with 'proxy_target' and 'redirect_code' defined is not allowed"
+			}
 		}
 
 		if pathCfg.Path == "" {
@@ -151,7 +191,9 @@ func (cfg *RouteConfig) validate() string {
 	if len(cfg.Paths) != 0 {
 		if cfg.ProxyTarget != "" {
 			return "base route with defined 'proxy_target' url is not allowed to have paths"
-		} else if cfg.RedirectTarget != "" {
+		}
+
+		if cfg.RedirectTarget != "" {
 			return "base route with defined 'redirect_target' url is not allowed to have paths"
 		}
 	}
@@ -161,10 +203,28 @@ func (cfg *RouteConfig) validate() string {
 			return "'proxy_target' or 'redirect_target' url is missing for route with no paths"
 		}
 
+		if cfg.RedirectCode != 0 {
+			return "defining 'redirect_code' in base route that has paths is not allowed"
+		}
+
 		for _, pathCfg := range cfg.Paths {
 			if pathCfg.ProxyTarget == "" && pathCfg.RedirectTarget == "" {
 				return "found base route with path route that have both no 'proxy_target' or 'redirect_target' defined"
 			}
+
+			if pathCfg.RedirectCode != 0 {
+				if pathCfg.RedirectTarget == "" {
+					return "'redirect_code' defined without a corresponding 'redirect_target' in path route"
+				}
+				if !isValidRedirectCode(pathCfg.RedirectCode) {
+					return fmt.Sprintf("invalid 'redirect_code' %d for path route", pathCfg.RedirectCode)
+				}
+			} else {
+				if pathCfg.RedirectTarget != "" {
+					return "defining 'redirect_target' in path route without defining 'redirect_code' is not allowed"
+				}
+			}
+
 		}
 	}
 

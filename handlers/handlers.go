@@ -41,8 +41,8 @@ func ProxyRequestHandler(c *gin.Context, target, targetPath string) {
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
 
-func RedirectHandler(c *gin.Context, url string) {
-	c.Redirect(http.StatusFound, url)
+func RedirectHandler(c *gin.Context, url string, code int) {
+	c.Redirect(code, url)
 }
 
 func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
