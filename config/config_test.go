@@ -6,7 +6,7 @@ import (
 )
 
 func TestValidate(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name        string
 		cfg         Validatable
 		expectedErr string
@@ -366,11 +366,11 @@ func TestValidate(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.cfg.validate()
-			if err != tt.expectedErr {
-				t.Errorf("got error = %q, expected %q", err, tt.expectedErr)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.validate()
+			if err != tc.expectedErr {
+				t.Errorf("got error = %q, expected %q", err, tc.expectedErr)
 			}
 		})
 	}

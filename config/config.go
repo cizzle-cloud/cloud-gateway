@@ -228,7 +228,7 @@ func (cfg *RouteConfig) validate() string {
 		}
 	}
 
-	if len(cfg.Paths) == 0 && cfg.Method == "" {
+	if len(cfg.Paths) == 0 && cfg.Method == "" && cfg.Prefix != "" && cfg.Prefix != "/" {
 		return "http method is missing for a route with no paths"
 	}
 
