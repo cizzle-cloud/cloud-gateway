@@ -97,7 +97,12 @@ func (rr *RouteRegistry) ParseRoutes(cfg *config.Config) {
 		if r.RedirectTarget != "" {
 			routes = append(
 				routes,
-				route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithRedirect(r.RedirectTarget),
+				route.NewRoute(
+					r.Method,
+					r.Prefix,
+					r.Prefix,
+					resolvedMiddleware,
+				).WithRedirect(r.RedirectTarget, r.RedirectCode),
 			)
 			continue
 		}
@@ -144,8 +149,12 @@ func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMi
 		}
 
 		if path.RedirectTarget != "" {
-			pathRoute = route.NewRoute(path.Method, r.Prefix, r.Prefix+fixedPath, resolvedMiddleware).
-				WithFixedPath(fixedPath).WithRedirect(path.RedirectTarget)
+			pathRoute = route.NewRoute(
+				path.Method,
+				r.Prefix,
+				r.Prefix+fixedPath,
+				resolvedMiddleware,
+			).WithFixedPath(fixedPath).WithRedirect(path.RedirectTarget, path.RedirectCode)
 		}
 
 		pathRoutes = append(pathRoutes, pathRoute)
@@ -186,7 +195,7 @@ func getRouteHandler(route route.Route) (gin.HandlerFunc, int8) {
 
 	case route.RedirectTarget != "":
 		return func(c *gin.Context) {
-			handlers.RedirectHandler(c, route.RedirectTarget)
+			handlers.RedirectHandler(c, route.RedirectTarget, route.RedirectCode)
 		}, RouteHandle
 	default:
 		return nil, RouteInvalidRoute

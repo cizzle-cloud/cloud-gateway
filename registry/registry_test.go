@@ -11,8 +11,9 @@ func RoutesAreEqual(expected, actual route.Route) bool {
 	c2 := expected.Prefix == actual.Prefix
 	c3 := expected.ProxyTarget == actual.ProxyTarget
 	c4 := expected.RedirectTarget == actual.RedirectTarget
-	c5 := expected.FixedPath == actual.FixedPath
-	return c1 && c2 && c3 && c4 && c5
+	c5 := expected.RedirectCode == actual.RedirectCode
+	c6 := expected.FixedPath == actual.FixedPath
+	return c1 && c2 && c3 && c4 && c5 && c6
 }
 
 func DomainRoutesAreEqual(expected, actual route.DomainRoute) bool {
@@ -56,6 +57,7 @@ func TestRouteParsing(t *testing.T) {
 		Prefix:         "/foobar",
 		Method:         "GET",
 		RedirectTarget: "https://xyzzy.com",
+		RedirectCode:   308,
 	}
 
 	route5 := route.Route{
@@ -63,6 +65,7 @@ func TestRouteParsing(t *testing.T) {
 		Method:         "GET",
 		RelativePath:   "/thud/foo",
 		RedirectTarget: "https://foo.com",
+		RedirectCode:   302,
 		FixedPath:      "/foo",
 	}
 
@@ -71,6 +74,7 @@ func TestRouteParsing(t *testing.T) {
 		Method:         "GET",
 		RelativePath:   "/thud/bar",
 		RedirectTarget: "https://bar.com",
+		RedirectCode:   307,
 		FixedPath:      "/bar",
 	}
 

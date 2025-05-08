@@ -12,6 +12,7 @@ type Route struct {
 	// optional fields
 	ProxyTarget    string
 	RedirectTarget string
+	RedirectCode   int
 	FixedPath      string
 }
 
@@ -29,8 +30,9 @@ func (r Route) WithProxy(proxyTarget string) Route {
 	return r
 }
 
-func (r Route) WithRedirect(redirectTarget string) Route {
+func (r Route) WithRedirect(redirectTarget string, redirectCode int) Route {
 	r.RedirectTarget = redirectTarget
+	r.RedirectCode = redirectCode
 	return r
 }
 

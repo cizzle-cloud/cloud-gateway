@@ -6,7 +6,7 @@ import (
 )
 
 func TestValidate(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name        string
 		cfg         Validatable
 		expectedErr string
@@ -66,6 +66,7 @@ func TestValidate(t *testing.T) {
 			cfg: &RouteConfig{
 				Prefix:         "/foo",
 				RedirectTarget: "https://redirect.com",
+				RedirectCode:   307,
 				Paths: []*PathConfig{
 					{Path: "/quz", Method: "GET"},
 				},
@@ -249,6 +250,102 @@ func TestValidate(t *testing.T) {
 			expectedErr: "required field 'url' is missing for forward auth middleware",
 		},
 		{
+			name: "redirect_code without redirect_target at base",
+			cfg: &RouteConfig{
+				Prefix:       "/foo",
+				Method:       "GET",
+				RedirectCode: 307,
+			},
+			expectedErr: "'redirect_code' defined without a corresponding 'redirect_target' in base route",
+		},
+		{
+			name: "invalid redirect_code at base",
+			cfg: &RouteConfig{
+				Prefix:         "/foo",
+				Method:         "GET",
+				RedirectTarget: "https://redirect.com",
+				RedirectCode:   400,
+			},
+			expectedErr: "invalid 'redirect_code' 400 for base route",
+		},
+		{
+			name: "proxy_target with redirect_code at base",
+			cfg: &RouteConfig{
+				Prefix:       "/foo",
+				Method:       "GET",
+				ProxyTarget:  "https://proxy.com",
+				RedirectCode: 307,
+			},
+			expectedErr: "base route with 'proxy_target' and 'redirect_code' defined is not allowed",
+		},
+		{
+			name: "'redirect_code' missing when 'redirect_target' is defined in base route",
+			cfg: &RouteConfig{
+				Prefix:         "/foo",
+				Method:         "GET",
+				RedirectTarget: "https://redirect.com",
+			},
+			expectedErr: "defining 'redirect_target' in base route without defining 'redirect_code' is not allowed",
+		},
+		{
+			name: "'redirect_code' missing when 'redirect_target' is defined in path route",
+			cfg: &RouteConfig{
+				Prefix: "/foo",
+				Paths: []*PathConfig{
+					{
+						Path:           "/bar",
+						Method:         "GET",
+						RedirectTarget: "https://example.com",
+					},
+				},
+			},
+			expectedErr: "defining 'redirect_target' in path route without defining 'redirect_code' is not allowed",
+		},
+		{
+			name: "redirect_code without redirect_target in path",
+			cfg: &RouteConfig{
+				Prefix: "/foo",
+				Paths: []*PathConfig{
+					{
+						Path:         "/bar",
+						Method:       "GET",
+						RedirectCode: 307,
+					},
+				},
+			},
+			expectedErr: "found base route with path route that have both no 'proxy_target' or 'redirect_target' defined",
+		},
+		{
+			name: "invalid redirect_code in path",
+			cfg: &RouteConfig{
+				Prefix: "/foo",
+				Paths: []*PathConfig{
+					{
+						Path:           "/bar",
+						Method:         "GET",
+						RedirectTarget: "https://example.com",
+						RedirectCode:   123,
+					},
+				},
+			},
+			expectedErr: "invalid 'redirect_code' 123 for path route",
+		},
+		{
+			name: "proxy_target with redirect_code in path",
+			cfg: &RouteConfig{
+				Prefix: "/foo",
+				Paths: []*PathConfig{
+					{
+						Path:         "/bar",
+						Method:       "GET",
+						ProxyTarget:  "https://proxy.com",
+						RedirectCode: 308,
+					},
+				},
+			},
+			expectedErr: "path route with 'proxy_target' and 'redirect_code' defined is not allowed",
+		},
+		{
 			name: "valid proxy route",
 			cfg: &RouteConfig{
 				Prefix:      "/foo",
@@ -262,18 +359,18 @@ func TestValidate(t *testing.T) {
 			cfg: &RouteConfig{
 				Prefix: "/baz",
 				Paths: []*PathConfig{
-					{Path: "/baz", Method: "GET", RedirectTarget: "https://qux.com"},
+					{Path: "/baz", Method: "GET", RedirectTarget: "https://qux.com", RedirectCode: 302},
 				},
 			},
 			expectedErr: "",
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.cfg.validate()
-			if err != tt.expectedErr {
-				t.Errorf("got error = %q, expected %q", err, tt.expectedErr)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.validate()
+			if err != tc.expectedErr {
+				t.Errorf("got error = %q, expected %q", err, tc.expectedErr)
 			}
 		})
 	}
