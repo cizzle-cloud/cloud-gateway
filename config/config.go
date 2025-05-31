@@ -66,6 +66,7 @@ type ForwardAuthConfig struct {
 	ResponseHeaders      []string      `json:"response_headers" yaml:"response_headers"`
 	AddCookiesToRequest  []string      `json:"add_cookies_to_request" yaml:"add_cookies_to_request"`
 	AddCookiesToResponse []string      `json:"add_cookies_to_response" yaml:"add_cookies_to_response"`
+	CertFilepath         string        `json:"cert_filepath" yaml:"cert_filepath"`
 }
 
 type NoCachePolicyConfig struct{}

@@ -4,14 +4,26 @@ import (
 	"api_gateway/config"
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
 func NewForwardAuthMiddleware(cfg *config.ForwardAuthConfig) gin.HandlerFunc {
+
+	var client *http.Client
+	if cfg.CertFilepath != "" {
+		client = &http.Client{Transport: getTransport(cfg.CertFilepath)}
+	} else {
+		client = &http.Client{}
+	}
+
 	return func(c *gin.Context) {
 
 		// Create context with timeout
@@ -68,7 +80,6 @@ func NewForwardAuthMiddleware(cfg *config.ForwardAuthConfig) gin.HandlerFunc {
 		}
 
 		// Send the request
-		client := &http.Client{}
 		resp, err := client.Do(authReq)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": fmt.Sprintf("auth service unreachable: %v", err)})
@@ -117,5 +128,24 @@ func NewForwardAuthMiddleware(cfg *config.ForwardAuthConfig) gin.HandlerFunc {
 		}
 
 		c.Next()
+	}
+}
+
+func getTransport(certFilepath string) *http.Transport {
+
+	certData, err := os.ReadFile(certFilepath)
+	if err != nil {
+		log.Fatalf("[FORWARD AUTH] Failed to read cert file: %v", err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(certData)
+
+	tlsConfig := &tls.Config{
+		RootCAs: caCertPool,
+	}
+
+	return &http.Transport{
+		TLSClientConfig: tlsConfig,
 	}
 }

@@ -50,7 +50,7 @@ func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
 	reqUrlPath := c.Request.URL.Path
 	for _, r := range routes {
 		if r.Domain == targetDomain {
-			// Apply also middlware
+			// Apply middlware
 			for _, mw := range r.Middleware {
 				mw(c)
 				if c.IsAborted() {

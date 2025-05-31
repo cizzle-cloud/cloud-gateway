@@ -189,6 +189,7 @@ func getRouteHandler(route route.Route) (gin.HandlerFunc, int8) {
 		}, RouteNoRoute
 
 	case route.ProxyTarget != "":
+		//TODO: I think evaluation inside path.Clean method is wrong
 		return func(c *gin.Context) {
 			handlers.ProxyRequestHandler(c, route.ProxyTarget, path.Clean(c.Param("path")+route.FixedPath))
 		}, RouteHandle
