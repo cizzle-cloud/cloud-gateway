@@ -26,6 +26,12 @@ func NewForwardAuthMiddleware(cfg *config.ForwardAuthConfig) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 
+		// Bypass auth for CORS preflight requests
+		if c.Request.Method == http.MethodOptions {
+			c.Next()
+			return
+		}
+
 		// Create context with timeout
 		ctx, cancel := context.WithTimeout(c.Request.Context(), cfg.Timeout)
 		defer cancel()

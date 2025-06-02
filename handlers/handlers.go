@@ -47,20 +47,36 @@ func RedirectHandler(c *gin.Context, url string, code int) {
 
 func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
 	targetDomain := strings.Split(c.Request.Host, ":")[0]
-	reqUrlPath := c.Request.URL.Path
+	reqPath := c.Request.URL.Path
+	reqMethod := c.Request.Method
+
 	for _, r := range routes {
-		if r.Domain == targetDomain {
-			// Apply middlware
-			for _, mw := range r.Middleware {
-				mw(c)
+		if r.Domain != targetDomain {
+			continue
+		}
+
+		// Apply middlware
+		for _, mw := range r.Middleware {
+			mw(c)
+			if c.IsAborted() {
+				return
+			}
+		}
+
+		for _, p := range r.Paths {
+			if p.Path != reqPath || p.Method != reqMethod {
+				continue
+			}
+			for _, pmw := range p.Middleware {
+				pmw(c)
 				if c.IsAborted() {
 					return
 				}
 			}
-
-			ProxyRequestHandler(c, r.ProxyTarget, reqUrlPath)
-			return
 		}
+
+		ProxyRequestHandler(c, r.ProxyTarget, reqPath)
+		return
 	}
 
 	c.JSON(http.StatusNotFound, gin.H{"error": "no backend found for domain"})

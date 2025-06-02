@@ -41,10 +41,26 @@ func (r Route) WithFixedPath(fixedPath string) Route {
 	return r
 }
 
+type DomainPath struct {
+	Path       string
+	Method     string
+	Middleware []gin.HandlerFunc
+}
+
+func NewDomainPath(path, method string, middleware []gin.HandlerFunc) DomainPath {
+	return DomainPath{
+		Path:       path,
+		Method:     method,
+		Middleware: middleware,
+	}
+}
+
 type DomainRoute struct {
 	Domain      string
 	ProxyTarget string
 	Middleware  []gin.HandlerFunc
+	// optional fields
+	Paths []DomainPath
 }
 
 func NewDomainRoute(domain, proxyTarget string, middleware []gin.HandlerFunc) DomainRoute {
@@ -53,4 +69,9 @@ func NewDomainRoute(domain, proxyTarget string, middleware []gin.HandlerFunc) Do
 		ProxyTarget: proxyTarget,
 		Middleware:  middleware,
 	}
+}
+
+func (dr DomainRoute) WithPaths(paths []DomainPath) DomainRoute {
+	dr.Paths = paths
+	return dr
 }
