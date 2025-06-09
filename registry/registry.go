@@ -172,9 +172,16 @@ func (rr *RouteRegistry) ParseDomainRoutes(cfg *config.Config) {
 			resolveMiddlewareList(r.Middleware, cfg)...,
 		)
 
+		domainPaths := make([]route.DomainPath, 0, len(r.Paths))
+		for _, path := range r.Paths {
+			resolvedPathMiddleware := resolveMiddlewareList(path.Middleware, cfg)
+			domainPath := route.NewDomainPath(path.Path, path.Method, resolvedPathMiddleware)
+			domainPaths = append(domainPaths, domainPath)
+		}
+
 		domainRoutes = append(
 			domainRoutes,
-			route.NewDomainRoute(r.Domain, r.ProxyTarget, resolvedMiddleware),
+			route.NewDomainRoute(r.Domain, r.ProxyTarget, resolvedMiddleware).WithPaths(domainPaths),
 		)
 	}
 
@@ -189,6 +196,7 @@ func getRouteHandler(route route.Route) (gin.HandlerFunc, int8) {
 		}, RouteNoRoute
 
 	case route.ProxyTarget != "":
+		//TODO: I think evaluation inside path.Clean method is wrong
 		return func(c *gin.Context) {
 			handlers.ProxyRequestHandler(c, route.ProxyTarget, path.Clean(c.Param("path")+route.FixedPath))
 		}, RouteHandle

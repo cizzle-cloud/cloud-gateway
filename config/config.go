@@ -49,11 +49,18 @@ type RouteConfig struct {
 	Paths           []*PathConfig `json:"paths" yaml:"paths"`
 }
 
+type DomainPathConfig struct {
+	Path       string   `json:"path" yaml:"path"`
+	Method     string   `json:"method" yaml:"method"`
+	Middleware []string `json:"middleware" yaml:"middleware"`
+}
+
 type DomainRouteConfig struct {
-	Domain          string   `json:"domain" yaml:"domain"`
-	ProxyTarget     string   `json:"proxy_target" yaml:"proxy_target"`
-	Middleware      []string `json:"middleware" yaml:"middleware"`
-	MiddlewareGroup string   `json:"middleware_group" yaml:"middleware_group"`
+	Domain          string              `json:"domain" yaml:"domain"`
+	ProxyTarget     string              `json:"proxy_target" yaml:"proxy_target"`
+	Middleware      []string            `json:"middleware" yaml:"middleware"`
+	MiddlewareGroup string              `json:"middleware_group" yaml:"middleware_group"`
+	Paths           []*DomainPathConfig `json:"paths" yaml:"paths"`
 }
 
 type ForwardAuthConfig struct {
@@ -66,6 +73,7 @@ type ForwardAuthConfig struct {
 	ResponseHeaders      []string      `json:"response_headers" yaml:"response_headers"`
 	AddCookiesToRequest  []string      `json:"add_cookies_to_request" yaml:"add_cookies_to_request"`
 	AddCookiesToResponse []string      `json:"add_cookies_to_response" yaml:"add_cookies_to_response"`
+	CertFilepath         string        `json:"cert_filepath" yaml:"cert_filepath"`
 }
 
 type NoCachePolicyConfig struct{}
