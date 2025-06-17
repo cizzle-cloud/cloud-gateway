@@ -282,6 +282,18 @@ func (cfg *DomainRouteConfig) validate() string {
 }
 
 func (cfg *RateLimitConfig) validate() string {
+	if cfg.Ttl <= 0 {
+		return "'ttl' must be a must be a positive duration (e.g., '1h', '30m')"
+	}
+
+	if cfg.CleanupInterval <= 0 {
+		return "'cleanup_interval' must be a positive duration (e.g., '30m', '1h')"
+	}
+
+	if cfg.CleanupInterval > cfg.Ttl {
+		return "'cleanup_interval' cannot be longer than 'ttl' (records would expire before cleanup)"
+	}
+
 	switch algo := cfg.Algorithm; algo {
 	case "":
 		return "'algorithm' field is not specified for rate limiter"
