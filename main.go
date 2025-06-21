@@ -21,6 +21,8 @@ func main() {
 		return
 	}
 
+	gin.SetMode(cfg.Env.GinMode)
+
 	r := gin.Default()
 	rr := &registry.RouteRegistry{}
 	rr.FromConfig(cfg)

@@ -83,6 +83,7 @@ type EnvConfig struct {
 	Port         int    `json:"PORT" yaml:"PORT"`
 	CertFilepath string `json:"CERT_FILEPATH" yaml:"CERT_FILEPATH"`
 	KeyFilepath  string `json:"KEY_FILEPATH" yaml:"KEY_FILEPATH"`
+	GinMode      string `json:"GIN_MODE" yaml:"GIN_MODE"`
 }
 
 type Config struct {
@@ -347,6 +348,11 @@ func (cfg *EnvConfig) validate() string {
 	if cfg.Port < 0 || cfg.Port > 65535 {
 		return "invalid 'PORT'. Port number must be in the range of 0-65535"
 	}
+
+	if cfg.GinMode != "" && cfg.GinMode != "release" && cfg.GinMode != "debug" {
+		return "invalid 'GIN_MODE'. Gin mode must be either 'release' or 'debug'"
+	}
+
 	return ""
 }
 
@@ -359,6 +365,15 @@ func (cfg *Config) setDefaults() {
 		routeCfg.setDefaults()
 	}
 
+	if cfg.Env == nil {
+		cfg.Env = &EnvConfig{
+			Host:         "",
+			Port:         0,
+			CertFilepath: "",
+			KeyFilepath:  "",
+			GinMode:      "",
+		}
+	}
 	cfg.Env.setDefaults()
 }
 
@@ -387,6 +402,10 @@ func (cfg *EnvConfig) setDefaults() {
 
 	if cfg.Host == "" {
 		cfg.Host = "0.0.0.0"
+	}
+
+	if cfg.GinMode == "" {
+		cfg.GinMode = "release"
 	}
 }
 
