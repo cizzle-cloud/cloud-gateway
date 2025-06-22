@@ -14,7 +14,6 @@ func NewRateLimitMiddleware(rl *ratelimiter.RateLimiter, algo ratelimiter.RateLi
 
 	return func(c *gin.Context) {
 		clientIP := c.ClientIP()
-		log.Println("CLIENT IP", clientIP)
 		if !rl.Exists(clientIP) {
 			rl.Add(clientIP, algo)
 		}
