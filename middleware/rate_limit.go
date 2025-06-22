@@ -14,12 +14,13 @@ func NewRateLimitMiddleware(rl *ratelimiter.RateLimiter, algo ratelimiter.RateLi
 
 	return func(c *gin.Context) {
 		clientIP := c.ClientIP()
+		log.Println("CLIENT IP", clientIP)
 		if !rl.Exists(clientIP) {
 			rl.Add(clientIP, algo)
 		}
 		if !rl.Allow(clientIP) {
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
-			log.Printf("rate limit exceeded for client %s:", clientIP)
+			log.Printf("[MIDDLEWARE] rate limit exceeded for client %s:", clientIP)
 			c.Abort()
 			return
 		}

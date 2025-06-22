@@ -79,11 +79,12 @@ type ForwardAuthConfig struct {
 type NoCachePolicyConfig struct{}
 
 type EnvConfig struct {
-	Host         string `json:"HOST" yaml:"HOST"`
-	Port         int    `json:"PORT" yaml:"PORT"`
-	CertFilepath string `json:"CERT_FILEPATH" yaml:"CERT_FILEPATH"`
-	KeyFilepath  string `json:"KEY_FILEPATH" yaml:"KEY_FILEPATH"`
-	GinMode      string `json:"GIN_MODE" yaml:"GIN_MODE"`
+	Host           string   `json:"HOST" yaml:"HOST"`
+	Port           int      `json:"PORT" yaml:"PORT"`
+	CertFilepath   string   `json:"CERT_FILEPATH" yaml:"CERT_FILEPATH"`
+	KeyFilepath    string   `json:"KEY_FILEPATH" yaml:"KEY_FILEPATH"`
+	GinMode        string   `json:"GIN_MODE" yaml:"GIN_MODE"`
+	TrustedProxies []string `json:"TRUSTED_PROXIES" yaml:"TRUSTED_PROXIES"`
 }
 
 type Config struct {
@@ -367,11 +368,12 @@ func (cfg *Config) setDefaults() {
 
 	if cfg.Env == nil {
 		cfg.Env = &EnvConfig{
-			Host:         "",
-			Port:         0,
-			CertFilepath: "",
-			KeyFilepath:  "",
-			GinMode:      "",
+			Host:           "",
+			Port:           0,
+			CertFilepath:   "",
+			KeyFilepath:    "",
+			GinMode:        "",
+			TrustedProxies: []string{},
 		}
 	}
 	cfg.Env.setDefaults()
@@ -406,6 +408,10 @@ func (cfg *EnvConfig) setDefaults() {
 
 	if cfg.GinMode == "" {
 		cfg.GinMode = "release"
+	}
+
+	if len(cfg.TrustedProxies) == 0 {
+		cfg.TrustedProxies = []string{"0.0.0.0/0", "::/0"}
 	}
 }
 
