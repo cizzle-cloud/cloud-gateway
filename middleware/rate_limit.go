@@ -19,7 +19,7 @@ func NewRateLimitMiddleware(rl *ratelimiter.RateLimiter, algo ratelimiter.RateLi
 		}
 		if !rl.Allow(clientIP) {
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
-			log.Printf("rate limit exceeded for client %s:", clientIP)
+			log.Printf("[MIDDLEWARE] rate limit exceeded for client %s:", clientIP)
 			c.Abort()
 			return
 		}

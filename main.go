@@ -21,7 +21,9 @@ func main() {
 		return
 	}
 
+	gin.SetMode(cfg.Env.GinMode)
 	r := gin.Default()
+	r.SetTrustedProxies(cfg.Env.TrustedProxies)
 	rr := &registry.RouteRegistry{}
 	rr.FromConfig(cfg)
 	rr.RegisterRoutes(r)
