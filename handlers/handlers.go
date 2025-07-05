@@ -1,57 +1,83 @@
 package handlers
 
 import (
+	"cloud_gateway/route"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-func ProxyRequestHandler(c *gin.Context, target string, fixedPath string) {
+func ProxyRequestHandler(c *gin.Context, target, targetPath string) {
 	targetURL, err := url.Parse(target)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid proxy target"})
 		return
 	}
 
-	log.Printf("[ PROXY ] Target URL: %s", targetURL)
-
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 
-	log.Printf("[ PROXY ] Request received at %s at %s\n", c.Request.URL, time.Now())
+	proxy.Director = func(req *http.Request) {
+		// Modify request parameters
+		req.URL.Path = targetURL.Path + targetPath
+		req.Host = targetURL.Host
+		req.URL.Host = targetURL.Host
+		req.URL.Scheme = targetURL.Scheme
 
-	log.Printf("[ PROXY ] Target URL: %s", targetURL)
-	log.Printf("[ PROXY ] Target URL Path: %s", targetURL.Path)
-	log.Printf("[ PROXY ] C param Path: %s", c.Param("path"))
-	log.Printf("[ PROXY ] Target URL host: %s", targetURL.Host)
-	log.Printf("[ PROXY ] Target URL Scheme: %s", targetURL.Scheme)
+		// Forward original host
+		req.Header.Set("X-Forwarded-Host", c.Request.Host)
 
-	var newPath string
-	if fixedPath != "" {
-		newPath = targetURL.Path + c.Param("path") + fixedPath
-	} else {
-		newPath = targetURL.Path + c.Param("path")
+		log.Printf("[PROXY] Forwarding request to %s at %s\n", req.URL, time.Now())
+		log.Printf("[PROXY] X-Forwarded-Host: %s", req.Header.Get("X-Forwarded-Host"))
 	}
 
-	c.Request.URL.Path = newPath
-	c.Request.Host = targetURL.Host
-	c.Request.URL.Host = targetURL.Host
-	c.Request.URL.Scheme = targetURL.Scheme
-	c.Request.Header.Set("X-Forwarded-Host", c.Request.Host)
-	log.Printf("[ PROXY ] Request Path: %s", c.Request.URL.Path)
-	log.Printf("[ PROXY ] X-Forwarded-Host: %s", c.Request.Host)
+	log.Printf("[PROXY] Request received at %s at %s\n", c.Request.URL, time.Now())
+	log.Printf("[PROXY] Target URL: %s", targetURL)
 
-	log.Printf("[ PROXY ] Forwarding request to %s at %s\n", c.Request.URL, time.Now())
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
 
-func RedirectHandler(c *gin.Context, url string) {
-	c.Redirect(http.StatusFound, url)
+func RedirectHandler(c *gin.Context, url string, code int) {
+	c.Redirect(code, url)
 }
 
-func Handle404(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"message": "Page Not Found"})
+func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
+	targetDomain := strings.Split(c.Request.Host, ":")[0]
+	reqPath := c.Request.URL.Path
+	reqMethod := c.Request.Method
+
+	for _, r := range routes {
+		if r.Domain != targetDomain {
+			continue
+		}
+
+		// Apply middlware
+		for _, mw := range r.Middleware {
+			mw(c)
+			if c.IsAborted() {
+				return
+			}
+		}
+
+		for _, p := range r.Paths {
+			if p.Path != reqPath || p.Method != reqMethod {
+				continue
+			}
+			for _, pmw := range p.Middleware {
+				pmw(c)
+				if c.IsAborted() {
+					return
+				}
+			}
+		}
+
+		ProxyRequestHandler(c, r.ProxyTarget, reqPath)
+		return
+	}
+
+	c.JSON(http.StatusNotFound, gin.H{"error": "no backend found for domain"})
 }

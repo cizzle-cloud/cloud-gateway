@@ -1,24 +1,42 @@
 package main
 
 import (
-	"api_gateway/config"
-	"api_gateway/route"
+	"cloud_gateway/config"
+	"cloud_gateway/registry"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-
-	cfg, err := config.LoadConfig("config_template.yaml", "yaml")
+	env, err := config.LoadEnv()
 	if err != nil {
 		err.Handle()
 		return
 	}
 
+	cfg, err := config.LoadConfig(env.ConfigFilepath, env.ConfigFileType)
+	if err != nil {
+		err.Handle()
+		return
+	}
+
+	gin.SetMode(cfg.Env.GinMode)
 	r := gin.Default()
-	rr := &route.RouteRegistry{}
+	r.SetTrustedProxies(cfg.Env.TrustedProxies)
+	rr := &registry.RouteRegistry{}
 	rr.FromConfig(cfg)
 	rr.RegisterRoutes(r)
-	r.Run(fmt.Sprintf(":%s", cfg.Env.Port))
+	rr.RegisterDomainRoutes(r)
+
+	addr := fmt.Sprintf("%s:%v", cfg.Env.Host, cfg.Env.Port)
+	certFilepath := cfg.Env.CertFilepath
+	keyFilepath := cfg.Env.KeyFilepath
+	if certFilepath == "" || keyFilepath == "" {
+		r.Run(addr)
+	} else {
+
+		r.RunTLS(addr, certFilepath, keyFilepath)
+	}
+
 }

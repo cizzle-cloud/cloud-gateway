@@ -3,3 +3,6 @@ tmp
 **/.env
 **/.vscode
 **/.vs
+
+*.prof
+*.pprof

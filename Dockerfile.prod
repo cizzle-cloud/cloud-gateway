@@ -1,5 +1,7 @@
 FROM golang:1.23.2 AS build
 
+RUN mkdir -p /root/.ssh
+
 WORKDIR /api-gateway
 
 COPY go.mod go.sum ./
