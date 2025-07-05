@@ -1,17 +1,16 @@
 FROM golang:1.23.2 AS build
 
-RUN mkdir -p /root/.ssh
-
-RUN --mount=type=secret,id=ssh_key,target=/run/secrets/ssh_key \
-    cat /run/secrets/ssh_key > /root/.ssh/id_rsa && \
-    chmod 600 /root/.ssh/id_rsa && \
-    ssh-keyscan github.com >> /root/.ssh/known_hosts && \
-    git config --global url."git@github.com:".insteadOf "https://github.com/"
-
 WORKDIR /api-gateway
 
 COPY go.mod go.sum ./
-RUN go mod download && go mod verify
+
+RUN --mount=type=secret,id=ssh_key,target=/run/secrets/ssh_key \
+    mkdir -p /root/.ssh && \
+    cat /run/secrets/ssh_key > /root/.ssh/id_rsa && \
+    chmod 600 /root/.ssh/id_rsa && \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts && \
+    git config --global url."git@github.com:".insteadOf "https://github.com/" && \
+    go mod download && go mod verify
 
 COPY . ./
 
