@@ -1,0 +1,102 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read-version.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read version from VERSION file
+        id: read-version
+        run: |
+          if [ -f VERSION ]; then
+            VERSION=$(cat VERSION)
+          else
+            VERSION=0.1.0
+            echo "Warning: VERSION file not found, using default v${VERSION}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: setup
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.setup.outputs.version }}
+    steps:
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/ssh_deploy_key
+          chmod 600 ~/.ssh/ssh_deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/ssh_deploy_key ${{ secrets.USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+            set -e
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            cd ~/workspace
+            
+            echo "Override CLOUD_GATEWAY_VERSION in .env"
+            sed -i "s/^CLOUD_GATEWAY_VERSION=.*/CLOUD_GATEWAY_VERSION=${{ env.VERSION }}/" .env
+
+            # echo "Pulling latest images..."
+            # docker compose pull
+
+            echo "Restarting containers..."
+            docker compose up -d
+
+            echo "Cleaning up..."
+            docker image prune -f
+
+            echo "Deployment completed successfully"
+          EOF
+
+  tag:
+    needs: [setup, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.setup.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Create and push tag
+        run: |
+          git checkout main
+          git pull origin main
+          TAG="v${{ env.VERSION }}"
+          git tag -a $TAG -m "Release $TAG"
+          git push origin $TAG
+          echo "Created and pushed tag $TAG"
+
+      - name: Merge release into develop
+        run: |
+          # Check if release branch exists
+          if git ls-remote --heads origin release | grep release; then
+            git checkout origin/develop -b develop
+            git merge --no-ff origin/release -m "Merge release branch back into develop"
+            git push origin develop
+            echo "Successfully merged release branch into develop"
+            
+            git push origin --delete release
+          else
+            echo "Release branch does not exist, skipping merge step"
+          fi
