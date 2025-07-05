@@ -6,6 +6,10 @@ COPY go.mod go.sum ./
 
 RUN --mount=type=secret,id=ssh_key,target=/run/secrets/ssh_key \
     mkdir -p /root/.ssh && \
+    echo "SSH key content (first few lines):" && \
+    head -3 /run/secrets/ssh_key && \
+    echo "SSH key content (last few lines):" && \
+    tail -3 /run/secrets/ssh_key && \
     cat /run/secrets/ssh_key > /root/.ssh/id_rsa && \
     chmod 600 /root/.ssh/id_rsa && \
     ssh-keyscan github.com >> /root/.ssh/known_hosts && \
