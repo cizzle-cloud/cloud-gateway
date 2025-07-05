@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"api_gateway/route"
+	"cloud_gateway/route"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -80,32 +80,4 @@ func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
 	}
 
 	c.JSON(http.StatusNotFound, gin.H{"error": "no backend found for domain"})
-}
-
-func BaseProxyRequestHandler(c *gin.Context, target string) {
-	targetURL, err := url.Parse(target)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid proxy target"})
-		return
-	}
-
-	proxy := httputil.NewSingleHostReverseProxy(targetURL)
-
-	proxy.Director = func(req *http.Request) {
-		// Modify request parameters
-		req.Host = targetURL.Host
-		req.URL.Host = targetURL.Host
-		req.URL.Scheme = targetURL.Scheme
-
-		// Forward original host
-		req.Header.Set("X-Forwarded-Host", c.Request.Host)
-
-		log.Printf("[PROXY] Forwarding request to %s at %s\n", req.URL, time.Now())
-		log.Printf("[PROXY] X-Forwarded-Host: %s", req.Header.Get("X-Forwarded-Host"))
-	}
-
-	log.Printf("[PROXY] Request received at %s at %s\n", c.Request.URL, time.Now())
-	log.Printf("[PROXY] Target URL: %s", targetURL)
-
-	proxy.ServeHTTP(c.Writer, c.Request)
 }

@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"api_gateway/config"
 	"bytes"
+	"cloud_gateway/config"
 	"io"
 	"net/http"
 	"net/http/httptest"

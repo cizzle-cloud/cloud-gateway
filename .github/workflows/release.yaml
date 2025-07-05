@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  prepare-release:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.read-version.outputs.version }}
+      ignore-bump: ${{ steps.bump-check.outputs.ignore-bump }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Determine version bump
+        run: |
+          ./bump-version.sh
+
+      - name: Check if version bump should be ignored
+        id: bump-check
+        run: |
+          if [ -f .bump-ignore ]; then
+            echo "ignore-bump=true" >> $GITHUB_OUTPUT
+          else
+            echo "ignore-bump=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure Git
+        if: steps.bump-check.outputs.ignore-bump == 'false'
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Commit and push changes
+        if: steps.bump-check.outputs.ignore-bump == 'false'
+        run: |
+          git checkout release
+          git add VERSION
+          git add CHANGELOG.md
+          git commit -m "update VERSION and CHANGELOG.md"
+          git push origin ${{ github.head_ref }}
+
+      - name: Read version
+        id: read-version
+        if: steps.bump-check.outputs.ignore-bump == 'false'
+        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    name: Build and push Docker Image
+    needs: prepare-release
+    if: needs.prepare-release.outputs.ignore-bump == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.prepare-release.outputs.version }}
+          labels: ${{ steps.meta.outputs.labels }}
