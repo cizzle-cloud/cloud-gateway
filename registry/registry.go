@@ -14,8 +14,7 @@ import (
 
 const (
 	RouteHandle       = 0
-	RouteNoRoute      = 1
-	RouteInvalidRoute = 2
+	RouteInvalidRoute = 1
 )
 
 type RouteRegistry struct {
@@ -45,8 +44,6 @@ func resolveMiddleware(mw string, cfg *config.Config) gin.HandlerFunc {
 		handler = middleware.NewRateLimitMiddleware(algo, rl)
 	} else if forwardAuthCfg, ok := cfg.ForwardAuth[mw]; ok {
 		handler = middleware.NewForwardAuthMiddleware(forwardAuthCfg)
-	} else if noCachePolicyCfg, ok := cfg.NoCachePolicies[mw]; ok {
-		handler = middleware.NewNoCacheMiddleware(noCachePolicyCfg)
 	} else {
 		log.Fatalf("[ERROR] Unknown or unsupported middleware: %s", mw)
 	}
@@ -116,9 +113,6 @@ func (rr *RouteRegistry) ParseRoutes(cfg *config.Config) {
 // Handle Proxy Target for prefix routes where no specific paths are defined
 func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []gin.HandlerFunc) route.Route {
 	if r.Prefix == "" || r.Prefix == "/" {
-		if r.Method != "" {
-			log.Fatal("[ERROR] Base route with proxy target has method defined.")
-		}
 		return route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithProxy(r.ProxyTarget)
 	}
 
@@ -190,11 +184,6 @@ func (rr *RouteRegistry) ParseDomainRoutes(cfg *config.Config) {
 
 func getRouteHandler(route route.Route) (gin.HandlerFunc, int8) {
 	switch {
-	case route.Prefix == "" || route.Prefix == "/":
-		return func(c *gin.Context) {
-			handlers.BaseProxyRequestHandler(c, route.ProxyTarget)
-		}, RouteNoRoute
-
 	case route.ProxyTarget != "":
 		//TODO: I think evaluation inside path.Clean method is wrong
 		return func(c *gin.Context) {
@@ -219,8 +208,6 @@ func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
 		case RouteHandle:
 			handlerFuncs := append(route.Middleware, handler)
 			r.Handle(route.Method, route.RelativePath, handlerFuncs...)
-		case RouteNoRoute:
-			r.NoRoute(handler)
 		case RouteInvalidRoute:
 			log.Fatal("[ERROR] Invalid/Unknown route configuration")
 		}

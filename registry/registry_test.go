@@ -129,31 +129,4 @@ func TestMiddlewareParsing(t *testing.T) {
 		}
 
 	}
-
-	// for idx, expected := range expectedMiddlewareNumbers {
-	// if len(rr.Routes[idx].Middleware) != expected {
-	//
-	// }
-	// }
-
-	// fw1 := config.RateLimitConfig{
-	// 	Ttl:             8 * time.Hour,
-	// 	CleanupInterval: 2 * time.Hour,
-	// 	Algorithm:       "fixed_window_counter",
-	// 	Limit:           10,
-	// 	WindowSize:      5 * time.Second,
-	// }
-
-	// tb1 := config.RateLimitConfig{
-	// 	Ttl:             8 * time.Hour,
-	// 	CleanupInterval: 2 * time.Hour,
-	// 	Algorithm:       "token_bucket",
-	// 	Capacity:        10,
-	// 	RefillTokens:    10,
-	// 	RefillInterval:  5 * time.Second,
-	// }
-
-	// algo, rl := ParseRateLimitCfg(tb1)
-
-	// handler := middleware.NewRateLimitMiddleware(algo, rl)
 }
