@@ -2,7 +2,7 @@ FROM golang:1.23.2 AS build
 
 RUN mkdir -p /root/.ssh
 
-RUN --mount=type=secret,id=ssh,target=/run/secrets/ssh_key \
+RUN --mount=type=secret,id=ssh_key,target=/run/secrets/ssh_key \
     cat /run/secrets/ssh_key > /root/.ssh/id_rsa && \
     chmod 600 /root/.ssh/id_rsa && \
     ssh-keyscan github.com >> /root/.ssh/known_hosts && \
