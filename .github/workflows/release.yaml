@@ -94,3 +94,5 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.prepare-release.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}
+          secrets: |
+            ssh_key=${{ secrets.SSH_PRIVATE_KEY }}
