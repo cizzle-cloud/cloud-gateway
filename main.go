@@ -1,8 +1,8 @@
 package main
 
 import (
-	"api_gateway/config"
-	"api_gateway/registry"
+	"cloud_gateway/config"
+	"cloud_gateway/registry"
 	"fmt"
 
 	"github.com/gin-gonic/gin"

@@ -1,10 +1,10 @@
 package registry
 
 import (
-	"api_gateway/config"
-	"api_gateway/handlers"
-	"api_gateway/middleware"
-	"api_gateway/route"
+	"cloud_gateway/config"
+	"cloud_gateway/handlers"
+	"cloud_gateway/middleware"
+	"cloud_gateway/route"
 	"log"
 	"path"
 

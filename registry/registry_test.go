@@ -1,8 +1,8 @@
 package registry
 
 import (
-	"api_gateway/config"
-	"api_gateway/route"
+	"cloud_gateway/config"
+	"cloud_gateway/route"
 	"testing"
 )
 

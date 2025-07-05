@@ -1,7 +1,7 @@
 package config
 
 import (
-	"api_gateway/errors"
+	"cloud_gateway/errors"
 	"encoding/json"
 	"fmt"
 	"net/http"

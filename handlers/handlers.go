@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"api_gateway/route"
+	"cloud_gateway/route"
 	"log"
 	"net/http"
 	"net/http/httputil"
