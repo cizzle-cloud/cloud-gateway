@@ -1,9 +1,10 @@
 package registry
 
 import (
-	"cloud_gateway/config"
-	"cloud_gateway/route"
 	"testing"
+
+	"github.com/cizzle-cloud/cloud-gateway/internal/config"
+	"github.com/cizzle-cloud/cloud-gateway/internal/route"
 )
 
 func RoutesAreEqual(expected, actual route.Route) bool {
@@ -23,7 +24,7 @@ func DomainRoutesAreEqual(expected, actual route.DomainRoute) bool {
 }
 
 func TestRouteParsing(t *testing.T) {
-	cfg, err := config.LoadConfig("./route_config.yaml", "yaml")
+	cfg, err := config.LoadConfig("testdata/route_config.yaml", "yaml")
 	if err != nil {
 		t.Logf("error: %v", err)
 	}

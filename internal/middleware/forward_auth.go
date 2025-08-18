@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"bytes"
-	"cloud_gateway/config"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -12,6 +11,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/config"
 	"github.com/gin-gonic/gin"
 )
 

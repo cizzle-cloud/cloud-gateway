@@ -1,7 +1,6 @@
-package handlers
+package handler
 
 import (
-	"cloud_gateway/route"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -9,10 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/route"
 	"github.com/gin-gonic/gin"
 )
 
-func ProxyRequestHandler(c *gin.Context, target, targetPath string) {
+func ProxyRequest(c *gin.Context, target, targetPath string) {
 	targetURL, err := url.Parse(target)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid proxy target"})
@@ -41,11 +41,11 @@ func ProxyRequestHandler(c *gin.Context, target, targetPath string) {
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
 
-func RedirectHandler(c *gin.Context, url string, code int) {
+func Redirect(c *gin.Context, url string, code int) {
 	c.Redirect(code, url)
 }
 
-func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
+func ProxyDomain(c *gin.Context, routes []route.DomainRoute) {
 	targetDomain := strings.Split(c.Request.Host, ":")[0]
 	reqPath := c.Request.URL.Path
 	reqMethod := c.Request.Method
@@ -75,7 +75,7 @@ func DomainProxyHandler(c *gin.Context, routes []route.DomainRoute) {
 			}
 		}
 
-		ProxyRequestHandler(c, r.ProxyTarget, reqPath)
+		ProxyRequest(c, r.ProxyTarget, reqPath)
 		return
 	}
 

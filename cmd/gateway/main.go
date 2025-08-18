@@ -1,10 +1,10 @@
 package main
 
 import (
-	"cloud_gateway/config"
-	"cloud_gateway/registry"
 	"fmt"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/config"
+	"github.com/cizzle-cloud/cloud-gateway/internal/registry"
 	"github.com/gin-gonic/gin"
 )
 

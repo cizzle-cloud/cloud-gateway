@@ -1,13 +1,13 @@
 package registry
 
 import (
-	"cloud_gateway/config"
-	"cloud_gateway/handlers"
-	"cloud_gateway/middleware"
-	"cloud_gateway/route"
 	"log"
 	"path"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/config"
+	"github.com/cizzle-cloud/cloud-gateway/internal/handler"
+	"github.com/cizzle-cloud/cloud-gateway/internal/middleware"
+	"github.com/cizzle-cloud/cloud-gateway/internal/route"
 	ratelimiter "github.com/cizzle-cloud/rate-limiter"
 	"github.com/gin-gonic/gin"
 )
@@ -187,12 +187,12 @@ func getRouteHandler(route route.Route) (gin.HandlerFunc, int8) {
 	case route.ProxyTarget != "":
 		//TODO: I think evaluation inside path.Clean method is wrong
 		return func(c *gin.Context) {
-			handlers.ProxyRequestHandler(c, route.ProxyTarget, path.Clean(c.Param("path")+route.FixedPath))
+			handler.ProxyRequest(c, route.ProxyTarget, path.Clean(c.Param("path")+route.FixedPath))
 		}, RouteHandle
 
 	case route.RedirectTarget != "":
 		return func(c *gin.Context) {
-			handlers.RedirectHandler(c, route.RedirectTarget, route.RedirectCode)
+			handler.Redirect(c, route.RedirectTarget, route.RedirectCode)
 		}, RouteHandle
 	default:
 		return nil, RouteInvalidRoute
@@ -219,6 +219,6 @@ func (rr *RouteRegistry) RegisterDomainRoutes(r *gin.Engine) {
 		return
 	}
 	r.NoRoute(func(c *gin.Context) {
-		handlers.DomainProxyHandler(c, rr.DomainRoutes)
+		handler.ProxyDomain(c, rr.DomainRoutes)
 	})
 }

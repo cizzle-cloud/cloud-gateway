@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"bytes"
-	"cloud_gateway/config"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/config"
 	"github.com/gin-gonic/gin"
 )
 
