@@ -1,7 +1,6 @@
 package config
 
 import (
-	"cloud_gateway/errors"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/errors"
 	"gopkg.in/yaml.v3"
 )
 

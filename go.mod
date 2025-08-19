@@ -1,4 +1,4 @@
-module cloud_gateway
+module github.com/cizzle-cloud/cloud-gateway
 
 go 1.23.2
 
