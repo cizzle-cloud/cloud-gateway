@@ -5,14 +5,13 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/cizzle-cloud/cloud-gateway/internal/router"
 	ratelimiter "github.com/cizzle-cloud/rate-limiter"
 )
 
 //TODO: For future not rate limit only based per client IP?
 
-func NewRateLimitMiddleware(rl *ratelimiter.RateLimiter, algo ratelimiter.RateLimitAlgo) router.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
+func NewRateLimitMiddleware(rl *ratelimiter.RateLimiter, algo ratelimiter.RateLimitAlgo) HTTPFunc {
+	return func(next HTTPHandler) HTTPHandler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
 			if err != nil {

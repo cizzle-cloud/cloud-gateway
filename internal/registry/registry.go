@@ -28,7 +28,7 @@ func (rr *RouteRegistry) FromConfig(cfg *config.Config) {
 	rr.ParseDomainRoutes(cfg)
 }
 
-func resolveMiddlewareGroup(middlewareGroup string, cfg *config.Config) []router.MiddlewareFunc {
+func resolveMiddlewareGroup(middlewareGroup string, cfg *config.Config) []middleware.HTTPFunc {
 	grp, ok := cfg.MiddlewareGroups[middlewareGroup]
 	if !ok {
 		return nil
@@ -37,8 +37,8 @@ func resolveMiddlewareGroup(middlewareGroup string, cfg *config.Config) []router
 	return resolveMiddlewareList(*grp, cfg)
 }
 
-func resolveMiddleware(mw string, cfg *config.Config) router.MiddlewareFunc {
-	var handler router.MiddlewareFunc
+func resolveMiddleware(mw string, cfg *config.Config) middleware.HTTPFunc {
+	var handler middleware.HTTPFunc
 
 	if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
 		algo, rl := ParseRateLimitCfg(rateLimitCfg)
@@ -53,8 +53,8 @@ func resolveMiddleware(mw string, cfg *config.Config) router.MiddlewareFunc {
 	return handler
 }
 
-func resolveMiddlewareList(mwl []string, cfg *config.Config) []router.MiddlewareFunc {
-	var handlers []router.MiddlewareFunc
+func resolveMiddlewareList(mwl []string, cfg *config.Config) []middleware.HTTPFunc {
+	var handlers []middleware.HTTPFunc
 
 	for _, mw := range mwl {
 		handlers = append(handlers, resolveMiddleware(mw, cfg))
@@ -113,7 +113,7 @@ func (rr *RouteRegistry) ParseRoutes(cfg *config.Config) {
 }
 
 // Handle Proxy Target for prefix routes where no specific paths are defined
-func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []router.MiddlewareFunc) route.Route {
+func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []middleware.HTTPFunc) route.Route {
 	if r.Prefix == "" || r.Prefix == "/" {
 		return route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithProxy(r.ProxyTarget)
 	}
@@ -122,7 +122,7 @@ func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []router.Middlew
 }
 
 // Handle individual paths under the prefix
-func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMiddleware []router.MiddlewareFunc) []route.Route {
+func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMiddleware []middleware.HTTPFunc) []route.Route {
 	var pathRoutes []route.Route
 
 	for _, path := range r.Paths {
@@ -133,7 +133,7 @@ func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMi
 		)
 
 		resolvedMiddleware := append(
-			append([]router.MiddlewareFunc{}, resolvedRouteMiddleware...),
+			append([]middleware.HTTPFunc{}, resolvedRouteMiddleware...),
 			resolvedPathMiddleware...,
 		)
 

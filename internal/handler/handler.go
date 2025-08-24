@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/middleware"
 	"github.com/cizzle-cloud/cloud-gateway/internal/route"
-	"github.com/cizzle-cloud/cloud-gateway/internal/router"
 )
 
 func ProxyRequest(target, targetPath string) http.Handler {
@@ -71,7 +71,7 @@ func ProxyDomain(routes []route.DomainRoute) http.Handler {
 					}
 
 					// Apply path-level middleware and proxy
-					finalHandler := applyMiddleware(
+					finalHandler := middleware.Chain[middleware.HTTPHandler](
 						ProxyRequest(route.ProxyTarget, reqPath),
 						p.Middleware...,
 					)
@@ -85,7 +85,7 @@ func ProxyDomain(routes []route.DomainRoute) http.Handler {
 			})
 
 			// Apply domain-level middleware
-			finalHandler := applyMiddleware(handler, route.Middleware...)
+			finalHandler := middleware.Chain[middleware.HTTPHandler](handler, route.Middleware...)
 			finalHandler.ServeHTTP(w, r)
 			return
 		}
@@ -93,14 +93,6 @@ func ProxyDomain(routes []route.DomainRoute) http.Handler {
 		writeJSONError(w, http.StatusNotFound, "no backend found for domain")
 	})
 
-}
-
-// applyMiddleware applies middleware in the correct order (last middleware wraps first)
-func applyMiddleware(handler http.Handler, middleware ...router.MiddlewareFunc) http.Handler {
-	for i := len(middleware) - 1; i >= 0; i-- {
-		handler = middleware[i](handler)
-	}
-	return handler
 }
 
 // Helper function to write JSON error responses
