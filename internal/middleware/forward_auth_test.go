@@ -10,8 +10,23 @@ import (
 	"time"
 
 	"github.com/cizzle-cloud/cloud-gateway/internal/config"
-	"github.com/gin-gonic/gin"
 )
+
+func setupTestServerHandler(t *testing.T, cfg *config.ForwardAuthConfig) http.Handler {
+	t.Helper()
+
+	protectedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte(`{"message":"OK"}`))
+		if err != nil {
+			t.Errorf("could not write response body: %v", err)
+			return
+		}
+	})
+
+	return NewForwardAuthMiddleware(cfg)(protectedHandler)
+}
 
 func TestForwardAuthMiddlewareAuthorized(t *testing.T) {
 	authorizationHeader := "Bearer test123"
@@ -76,14 +91,7 @@ func TestForwardAuthMiddlewareAuthorized(t *testing.T) {
 		AddCookiesToResponse: []string{"session"},
 	}
 
-	// Gin test setup
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-
-	r.Use(NewForwardAuthMiddleware(&cfg))
-	r.GET("/protected", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "OK"})
-	})
+	handler := setupTestServerHandler(t, &cfg)
 
 	// Mock request
 	body := bytes.NewBuffer([]byte(forwardBody))
@@ -95,14 +103,15 @@ func TestForwardAuthMiddlewareAuthorized(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Do request
-	r.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status code: %v, got %v", http.StatusOK, w.Code)
 	}
 
 	actualBody := w.Body.String()
-	if w.Body.String() != `{"message":"OK"}` {
+
+	if actualBody != `{"message":"OK"}` {
 		t.Errorf("Expected body string: %s, got %s", `{"message":"OK"}`, actualBody)
 	}
 
@@ -182,13 +191,7 @@ func TestForwardAuthMiddlewareUnauthorized(t *testing.T) {
 		TrustForwardHeader: false,
 	}
 
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-
-	r.Use(NewForwardAuthMiddleware(&cfg))
-	r.GET("/protected", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "OK"})
-	})
+	handler := setupTestServerHandler(t, &cfg)
 
 	body := bytes.NewBuffer([]byte(forwardBody))
 	req := httptest.NewRequest("GET", "/protected", body)
@@ -198,7 +201,7 @@ func TestForwardAuthMiddlewareUnauthorized(t *testing.T) {
 	req.Header.Set("Mock-Header-2", "mock-header-2")
 	w := httptest.NewRecorder()
 
-	r.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("Expected status code: %v, got %v", http.StatusUnauthorized, w.Code)
@@ -238,18 +241,12 @@ func TestForwardAuthMiddlewareTimeout(t *testing.T) {
 		TrustForwardHeader: false,
 	}
 
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-
-	r.Use(NewForwardAuthMiddleware(&cfg))
-	r.GET("/protected", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "OK"})
-	})
+	handler := setupTestServerHandler(t, &cfg)
 
 	req := httptest.NewRequest("GET", "/protected", nil)
 	w := httptest.NewRecorder()
 
-	r.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusServiceUnavailable {
 		t.Errorf("Expected status code: %v, got %v", http.StatusServiceUnavailable, w.Code)
