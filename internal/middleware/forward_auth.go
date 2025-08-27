@@ -16,7 +16,7 @@ import (
 	"github.com/cizzle-cloud/cloud-gateway/internal/response"
 )
 
-func NewForwardAuthMiddleware(cfg *config.ForwardAuthConfig) HTTPFunc {
+func NewForwardAuthMiddleware(c *request.Context, cfg *config.ForwardAuthConfig) HTTPFunc {
 
 	var client *http.Client
 	if cfg.CertFilepath != "" {
@@ -76,7 +76,7 @@ func NewForwardAuthMiddleware(cfg *config.ForwardAuthConfig) HTTPFunc {
 				authReq.Header.Set("X-Forwarded-Host", r.Host)
 				authReq.Header.Set("X-Forwarded-Method", r.Method)
 				authReq.Header.Set("X-Forwarded-Uri", r.RequestURI)
-				authReq.Header.Set("X-Forwarded-For", request.ClientIP(r))
+				authReq.Header.Set("X-Forwarded-For", request.ClientIP(c, r))
 
 				scheme := "http"
 				if r.TLS != nil {

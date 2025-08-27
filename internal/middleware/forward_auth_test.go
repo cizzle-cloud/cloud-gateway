@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cizzle-cloud/cloud-gateway/internal/config"
+	"github.com/cizzle-cloud/cloud-gateway/internal/request"
 )
 
 func setupTestServerHandler(t *testing.T, cfg *config.ForwardAuthConfig) http.Handler {
@@ -25,7 +26,9 @@ func setupTestServerHandler(t *testing.T, cfg *config.ForwardAuthConfig) http.Ha
 		}
 	})
 
-	return NewForwardAuthMiddleware(cfg)(protectedHandler)
+	c, _ := request.NewContext([]string{}, []string{})
+
+	return NewForwardAuthMiddleware(c, cfg)(protectedHandler)
 }
 
 func TestForwardAuthMiddlewareAuthorized(t *testing.T) {
