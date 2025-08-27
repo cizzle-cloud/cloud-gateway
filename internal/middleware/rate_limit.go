@@ -2,28 +2,26 @@ package middleware
 
 import (
 	"log"
-	"net"
 	"net/http"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/request"
+	"github.com/cizzle-cloud/cloud-gateway/internal/response"
 	ratelimiter "github.com/cizzle-cloud/rate-limiter"
 )
 
 //TODO: For future not rate limit only based per client IP?
 
-func NewRateLimitMiddleware(rl *ratelimiter.RateLimiter, algo ratelimiter.RateLimitAlgo) HTTPFunc {
+func NewRateLimitMiddleware(c *request.Context, rl *ratelimiter.RateLimiter, algo ratelimiter.RateLimitAlgo) HTTPFunc {
 	return func(next HTTPHandler) HTTPHandler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
-			if err != nil {
-				clientIP = r.RemoteAddr
-			}
+			clientIP := request.ClientIP(c, r)
 
 			if !rl.Exists(clientIP) {
 				rl.Add(clientIP, algo)
 			}
 			if !rl.Allow(clientIP) {
-				http.Error(w, `{"error":"rate limit exceeded"}`, http.StatusTooManyRequests)
 				log.Printf("[MIDDLEWARE] rate limit exceeded for client %s", clientIP)
+				response.WriteJSONError(w, http.StatusTooManyRequests, "rate limit exceeded")
 				return
 			}
 
