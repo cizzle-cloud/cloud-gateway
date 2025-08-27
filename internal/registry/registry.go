@@ -8,6 +8,7 @@ import (
 	"github.com/cizzle-cloud/cloud-gateway/internal/config"
 	"github.com/cizzle-cloud/cloud-gateway/internal/handler"
 	"github.com/cizzle-cloud/cloud-gateway/internal/middleware"
+	"github.com/cizzle-cloud/cloud-gateway/internal/request"
 	"github.com/cizzle-cloud/cloud-gateway/internal/route"
 	"github.com/cizzle-cloud/cloud-gateway/internal/router"
 	ratelimiter "github.com/cizzle-cloud/rate-limiter"
@@ -19,32 +20,39 @@ const (
 )
 
 type RouteRegistry struct {
+	Context      *request.Context
 	Routes       []route.Route
 	DomainRoutes []route.DomainRoute
 }
 
-func (rr *RouteRegistry) FromConfig(cfg *config.Config) {
-	rr.ParseRoutes(cfg)
-	rr.ParseDomainRoutes(cfg)
+func New(cfg *config.Config) *RouteRegistry {
+	c, _ := request.NewContext(cfg.Env.TrustedProxies, cfg.Env.TrustHeaders)
+	routes := parseRoutes(c, cfg)
+	domainRoutes := parseDomainRoutes(c, cfg)
+	return &RouteRegistry{
+		Context:      c,
+		Routes:       routes,
+		DomainRoutes: domainRoutes,
+	}
 }
 
-func resolveMiddlewareGroup(middlewareGroup string, cfg *config.Config) []middleware.HTTPFunc {
+func resolveMiddlewareGroup(middlewareGroup string, c *request.Context, cfg *config.Config) []middleware.HTTPFunc {
 	grp, ok := cfg.MiddlewareGroups[middlewareGroup]
 	if !ok {
 		return nil
 	}
 
-	return resolveMiddlewareList(*grp, cfg)
+	return resolveMiddlewareList(*grp, c, cfg)
 }
 
-func resolveMiddleware(mw string, cfg *config.Config) middleware.HTTPFunc {
+func resolveMiddleware(mw string, c *request.Context, cfg *config.Config) middleware.HTTPFunc {
 	var handler middleware.HTTPFunc
 
 	if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
-		algo, rl := ParseRateLimitCfg(rateLimitCfg)
-		handler = middleware.NewRateLimitMiddleware(algo, rl)
+		algo, rl := parseRateLimitCfg(rateLimitCfg)
+		handler = middleware.NewRateLimitMiddleware(c, algo, rl)
 	} else if forwardAuthCfg, ok := cfg.ForwardAuth[mw]; ok {
-		handler = middleware.NewForwardAuthMiddleware(forwardAuthCfg)
+		handler = middleware.NewForwardAuthMiddleware(c, forwardAuthCfg)
 	} else {
 		log.Fatalf("[ERROR] Unknown or unsupported middleware: %s", mw)
 	}
@@ -52,17 +60,17 @@ func resolveMiddleware(mw string, cfg *config.Config) middleware.HTTPFunc {
 	return handler
 }
 
-func resolveMiddlewareList(mwl []string, cfg *config.Config) []middleware.HTTPFunc {
+func resolveMiddlewareList(mwl []string, c *request.Context, cfg *config.Config) []middleware.HTTPFunc {
 	var handlers []middleware.HTTPFunc
 
 	for _, mw := range mwl {
-		handlers = append(handlers, resolveMiddleware(mw, cfg))
+		handlers = append(handlers, resolveMiddleware(mw, c, cfg))
 	}
 
 	return handlers
 }
 
-func ParseRateLimitCfg(cfg *config.RateLimitConfig) (*ratelimiter.RateLimiter, ratelimiter.RateLimitAlgo) {
+func parseRateLimitCfg(cfg *config.RateLimitConfig) (*ratelimiter.RateLimiter, ratelimiter.RateLimitAlgo) {
 	var algo ratelimiter.RateLimitAlgo
 
 	switch algoType := cfg.Algorithm; algoType {
@@ -77,14 +85,14 @@ func ParseRateLimitCfg(cfg *config.RateLimitConfig) (*ratelimiter.RateLimiter, r
 	return rl, algo
 }
 
-func (rr *RouteRegistry) ParseRoutes(cfg *config.Config) {
+func parseRoutes(c *request.Context, cfg *config.Config) []route.Route {
 	var routes []route.Route
 
 	for _, r := range cfg.Routes {
 
 		resolvedMiddleware := append(
-			resolveMiddlewareGroup(r.MiddlewareGroup, cfg),
-			resolveMiddlewareList(r.Middleware, cfg)...,
+			resolveMiddlewareGroup(r.MiddlewareGroup, c, cfg),
+			resolveMiddlewareList(r.Middleware, c, cfg)...,
 		)
 
 		if r.ProxyTarget != "" {
@@ -105,10 +113,10 @@ func (rr *RouteRegistry) ParseRoutes(cfg *config.Config) {
 			continue
 		}
 
-		routes = append(routes, handlePathRoutes(r, cfg, resolvedMiddleware)...)
+		routes = append(routes, handlePathRoutes(c, r, cfg, resolvedMiddleware)...)
 	}
 
-	rr.Routes = routes
+	return routes
 }
 
 // Handle Proxy Target for prefix routes where no specific paths are defined
@@ -121,14 +129,14 @@ func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []middleware.HTT
 }
 
 // Handle individual paths under the prefix
-func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMiddleware []middleware.HTTPFunc) []route.Route {
+func handlePathRoutes(c *request.Context, r *config.RouteConfig, cfg *config.Config, resolvedRouteMiddleware []middleware.HTTPFunc) []route.Route {
 	var pathRoutes []route.Route
 
 	for _, path := range r.Paths {
 
 		resolvedPathMiddleware := append(
-			resolveMiddlewareGroup(path.MiddlewareGroup, cfg),
-			resolveMiddlewareList(path.Middleware, cfg)...,
+			resolveMiddlewareGroup(path.MiddlewareGroup, c, cfg),
+			resolveMiddlewareList(path.Middleware, c, cfg)...,
 		)
 
 		resolvedMiddleware := append(
@@ -158,18 +166,18 @@ func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMi
 	return pathRoutes
 }
 
-func (rr *RouteRegistry) ParseDomainRoutes(cfg *config.Config) {
+func parseDomainRoutes(c *request.Context, cfg *config.Config) []route.DomainRoute {
 	var domainRoutes []route.DomainRoute
 
 	for _, r := range cfg.DomainRoutes {
 		resolvedMiddleware := append(
-			resolveMiddlewareGroup(r.MiddlewareGroup, cfg),
-			resolveMiddlewareList(r.Middleware, cfg)...,
+			resolveMiddlewareGroup(r.MiddlewareGroup, c, cfg),
+			resolveMiddlewareList(r.Middleware, c, cfg)...,
 		)
 
 		domainPaths := make([]route.DomainPath, 0, len(r.Paths))
 		for _, path := range r.Paths {
-			resolvedPathMiddleware := resolveMiddlewareList(path.Middleware, cfg)
+			resolvedPathMiddleware := resolveMiddlewareList(path.Middleware, c, cfg)
 			domainPath := route.NewDomainPath(path.Path, path.Method, resolvedPathMiddleware)
 			domainPaths = append(domainPaths, domainPath)
 		}
@@ -180,7 +188,7 @@ func (rr *RouteRegistry) ParseDomainRoutes(cfg *config.Config) {
 		)
 	}
 
-	rr.DomainRoutes = domainRoutes
+	return domainRoutes
 }
 
 func getRouteHandler(route route.Route) (http.Handler, int8) {

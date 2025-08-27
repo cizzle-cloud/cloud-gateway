@@ -23,8 +23,7 @@ func main() {
 
 	httpRouter := router.NewGinRouter(cfg.Env.Mode, cfg.Env.TrustedProxies)
 
-	rr := &registry.RouteRegistry{}
-	rr.FromConfig(cfg)
+	rr := registry.New(cfg)
 	rr.RegisterRoutes(httpRouter)
 	rr.RegisterDomainRoutes(httpRouter)
 	addr := fmt.Sprintf("%s:%v", cfg.Env.Host, cfg.Env.Port)
