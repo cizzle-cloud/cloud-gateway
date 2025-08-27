@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cizzle-cloud/cloud-gateway/internal/middleware"
+	"github.com/cizzle-cloud/cloud-gateway/internal/response"
 	"github.com/cizzle-cloud/cloud-gateway/internal/route"
 )
 
@@ -17,7 +17,7 @@ func ProxyRequest(target, targetPath string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		targetURL, err := url.Parse(target)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "invalid proxy target")
+			response.WriteJSONError(w, http.StatusInternalServerError, "invalid proxy target")
 			return
 		}
 
@@ -89,19 +89,7 @@ func ProxyDomain(routes []route.DomainRoute) http.Handler {
 			finalHandler.ServeHTTP(w, r)
 			return
 		}
-
-		writeJSONError(w, http.StatusNotFound, "no backend found for domain")
+		response.WriteJSONError(w, http.StatusNotFound, "no backend found for domain")
 	})
 
-}
-
-// Helper function to write JSON error responses
-func writeJSONError(w http.ResponseWriter, statusCode int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-
-	errorResponse := map[string]string{"error": message}
-	if err := json.NewEncoder(w).Encode(errorResponse); err != nil {
-		log.Printf("[ERROR] Failed to encode JSON error response: %v", err)
-	}
 }

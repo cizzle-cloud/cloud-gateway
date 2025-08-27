@@ -43,9 +43,8 @@ func resolveMiddleware(mw string, cfg *config.Config) middleware.HTTPFunc {
 	if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
 		algo, rl := ParseRateLimitCfg(rateLimitCfg)
 		handler = middleware.NewRateLimitMiddleware(algo, rl)
-	} else if _, ok := cfg.ForwardAuth[mw]; ok {
-		log.Fatal("Forward auth not refactored")
-		// handler = middleware.NewForwardAuthMiddleware(forwardAuthCfg)
+	} else if forwardAuthCfg, ok := cfg.ForwardAuth[mw]; ok {
+		handler = middleware.NewForwardAuthMiddleware(forwardAuthCfg)
 	} else {
 		log.Fatalf("[ERROR] Unknown or unsupported middleware: %s", mw)
 	}

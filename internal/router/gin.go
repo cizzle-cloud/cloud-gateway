@@ -18,8 +18,8 @@ func NewGinRouter(ginMode string, trustedProxies []string) *GinRouter {
 	return &GinRouter{engine: engine}
 }
 
-func (gr *GinRouter) Handle(method, path string, handler http.Handler, ms ...middleware.HTTPFunc) {
-	finalHandler := middleware.Chain[middleware.HTTPHandler](handler, ms...)
+func (gr *GinRouter) Handle(method, path string, handler http.Handler, mws ...middleware.HTTPFunc) {
+	finalHandler := middleware.Chain[middleware.HTTPHandler](handler, mws...)
 	wrapped := func(c *gin.Context) {
 		finalHandler.ServeHTTP(c.Writer, c.Request)
 	}
@@ -27,8 +27,8 @@ func (gr *GinRouter) Handle(method, path string, handler http.Handler, ms ...mid
 	gr.engine.Handle(method, path, wrapped)
 }
 
-func (gr *GinRouter) NoRoute(handler http.Handler, ms ...middleware.HTTPFunc) {
-	finalHandler := middleware.Chain[middleware.HTTPHandler](handler, ms...)
+func (gr *GinRouter) NoRoute(handler http.Handler, mws ...middleware.HTTPFunc) {
+	finalHandler := middleware.Chain[middleware.HTTPHandler](handler, mws...)
 	wrapped := func(c *gin.Context) {
 		finalHandler.ServeHTTP(c.Writer, c.Request)
 	}
