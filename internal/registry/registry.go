@@ -2,14 +2,15 @@ package registry
 
 import (
 	"log"
+	"net/http"
 	"path"
 
 	"github.com/cizzle-cloud/cloud-gateway/internal/config"
 	"github.com/cizzle-cloud/cloud-gateway/internal/handler"
 	"github.com/cizzle-cloud/cloud-gateway/internal/middleware"
 	"github.com/cizzle-cloud/cloud-gateway/internal/route"
+	"github.com/cizzle-cloud/cloud-gateway/internal/router"
 	ratelimiter "github.com/cizzle-cloud/rate-limiter"
-	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -27,7 +28,7 @@ func (rr *RouteRegistry) FromConfig(cfg *config.Config) {
 	rr.ParseDomainRoutes(cfg)
 }
 
-func resolveMiddlewareGroup(middlewareGroup string, cfg *config.Config) []gin.HandlerFunc {
+func resolveMiddlewareGroup(middlewareGroup string, cfg *config.Config) []middleware.HTTPFunc {
 	grp, ok := cfg.MiddlewareGroups[middlewareGroup]
 	if !ok {
 		return nil
@@ -36,8 +37,8 @@ func resolveMiddlewareGroup(middlewareGroup string, cfg *config.Config) []gin.Ha
 	return resolveMiddlewareList(*grp, cfg)
 }
 
-func resolveMiddleware(mw string, cfg *config.Config) gin.HandlerFunc {
-	var handler gin.HandlerFunc
+func resolveMiddleware(mw string, cfg *config.Config) middleware.HTTPFunc {
+	var handler middleware.HTTPFunc
 
 	if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
 		algo, rl := ParseRateLimitCfg(rateLimitCfg)
@@ -51,8 +52,8 @@ func resolveMiddleware(mw string, cfg *config.Config) gin.HandlerFunc {
 	return handler
 }
 
-func resolveMiddlewareList(mwl []string, cfg *config.Config) []gin.HandlerFunc {
-	var handlers []gin.HandlerFunc
+func resolveMiddlewareList(mwl []string, cfg *config.Config) []middleware.HTTPFunc {
+	var handlers []middleware.HTTPFunc
 
 	for _, mw := range mwl {
 		handlers = append(handlers, resolveMiddleware(mw, cfg))
@@ -111,7 +112,7 @@ func (rr *RouteRegistry) ParseRoutes(cfg *config.Config) {
 }
 
 // Handle Proxy Target for prefix routes where no specific paths are defined
-func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []gin.HandlerFunc) route.Route {
+func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []middleware.HTTPFunc) route.Route {
 	if r.Prefix == "" || r.Prefix == "/" {
 		return route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithProxy(r.ProxyTarget)
 	}
@@ -120,7 +121,7 @@ func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []gin.HandlerFun
 }
 
 // Handle individual paths under the prefix
-func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMiddleware []gin.HandlerFunc) []route.Route {
+func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMiddleware []middleware.HTTPFunc) []route.Route {
 	var pathRoutes []route.Route
 
 	for _, path := range r.Paths {
@@ -131,7 +132,7 @@ func handlePathRoutes(r *config.RouteConfig, cfg *config.Config, resolvedRouteMi
 		)
 
 		resolvedMiddleware := append(
-			append([]gin.HandlerFunc{}, resolvedRouteMiddleware...),
+			append([]middleware.HTTPFunc{}, resolvedRouteMiddleware...),
 			resolvedPathMiddleware...,
 		)
 
@@ -182,43 +183,37 @@ func (rr *RouteRegistry) ParseDomainRoutes(cfg *config.Config) {
 	rr.DomainRoutes = domainRoutes
 }
 
-func getRouteHandler(route route.Route) (gin.HandlerFunc, int8) {
+func getRouteHandler(route route.Route) (http.Handler, int8) {
 	switch {
 	case route.ProxyTarget != "":
-		//TODO: I think evaluation inside path.Clean method is wrong
-		return func(c *gin.Context) {
-			handler.ProxyRequest(c, route.ProxyTarget, path.Clean(c.Param("path")+route.FixedPath))
-		}, RouteHandle
+		// TODO: implement the dynamic part of the path route.FixedPath+c.Param("path") coming from the request
+		return handler.ProxyRequest(route.ProxyTarget, path.Clean(route.FixedPath)), RouteHandle
 
 	case route.RedirectTarget != "":
-		return func(c *gin.Context) {
-			handler.Redirect(c, route.RedirectTarget, route.RedirectCode)
-		}, RouteHandle
+		return handler.Redirect(route.RedirectTarget, route.RedirectCode), RouteHandle
 	default:
 		return nil, RouteInvalidRoute
-
 	}
 }
 
-func (rr *RouteRegistry) RegisterRoutes(r *gin.Engine) {
+func (rr *RouteRegistry) RegisterRoutes(router router.HTTPRouter) {
 	for _, route := range rr.Routes {
 		handler, routeType := getRouteHandler(route)
 
 		switch routeType {
 		case RouteHandle:
-			handlerFuncs := append(route.Middleware, handler)
-			r.Handle(route.Method, route.RelativePath, handlerFuncs...)
+			router.Handle(route.Method, route.RelativePath, handler, route.Middleware...)
 		case RouteInvalidRoute:
 			log.Fatal("[ERROR] Invalid/Unknown route configuration")
 		}
 	}
 }
 
-func (rr *RouteRegistry) RegisterDomainRoutes(r *gin.Engine) {
+func (rr *RouteRegistry) RegisterDomainRoutes(router router.HTTPRouter) {
 	if len(rr.DomainRoutes) == 0 {
 		return
 	}
-	r.NoRoute(func(c *gin.Context) {
-		handler.ProxyDomain(c, rr.DomainRoutes)
-	})
+	router.NoRoute(
+		handler.ProxyDomain(rr.DomainRoutes),
+	)
 }

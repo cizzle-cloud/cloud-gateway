@@ -1,14 +1,12 @@
 package route
 
-import (
-	"github.com/gin-gonic/gin"
-)
+import "github.com/cizzle-cloud/cloud-gateway/internal/middleware"
 
 type Route struct {
 	Method       string
 	Prefix       string
 	RelativePath string
-	Middleware   []gin.HandlerFunc
+	Middleware   []middleware.HTTPFunc
 	// optional fields
 	ProxyTarget    string
 	RedirectTarget string
@@ -16,7 +14,7 @@ type Route struct {
 	FixedPath      string
 }
 
-func NewRoute(method, prefix, relativePath string, middleware []gin.HandlerFunc) Route {
+func NewRoute(method, prefix, relativePath string, middleware []middleware.HTTPFunc) Route {
 	return Route{
 		Method:       method,
 		Prefix:       prefix,
@@ -44,10 +42,10 @@ func (r Route) WithFixedPath(fixedPath string) Route {
 type DomainPath struct {
 	Path       string
 	Method     string
-	Middleware []gin.HandlerFunc
+	Middleware []middleware.HTTPFunc
 }
 
-func NewDomainPath(path, method string, middleware []gin.HandlerFunc) DomainPath {
+func NewDomainPath(path, method string, middleware []middleware.HTTPFunc) DomainPath {
 	return DomainPath{
 		Path:       path,
 		Method:     method,
@@ -58,12 +56,12 @@ func NewDomainPath(path, method string, middleware []gin.HandlerFunc) DomainPath
 type DomainRoute struct {
 	Domain      string
 	ProxyTarget string
-	Middleware  []gin.HandlerFunc
+	Middleware  []middleware.HTTPFunc
 	// optional fields
 	Paths []DomainPath
 }
 
-func NewDomainRoute(domain, proxyTarget string, middleware []gin.HandlerFunc) DomainRoute {
+func NewDomainRoute(domain, proxyTarget string, middleware []middleware.HTTPFunc) DomainRoute {
 	return DomainRoute{
 		Domain:      domain,
 		ProxyTarget: proxyTarget,
