@@ -26,6 +26,7 @@ type RouteRegistry struct {
 }
 
 func New(cfg *config.Config) *RouteRegistry {
+	// TODO: validate early in config and remove error returning from NewContext
 	c, _ := request.NewContext(cfg.Env.TrustedProxies, cfg.Env.TrustHeaders)
 	routes := parseRoutes(c, cfg)
 	domainRoutes := parseDomainRoutes(c, cfg)

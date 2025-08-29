@@ -36,7 +36,7 @@ func TestForwardAuthMiddlewareAuthorized(t *testing.T) {
 	forwardBody := `{"k1": "v1", "k2": "v2"}`
 	method := "GET"
 
-	trustForwardHeaderTest := []struct {
+	tests := []struct {
 		label    string
 		header   string
 		expected string
@@ -60,7 +60,7 @@ func TestForwardAuthMiddlewareAuthorized(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"message":"authorized"}`))
 
-		for _, tt := range trustForwardHeaderTest {
+		for _, tt := range tests {
 			actual := r.Header.Get(tt.header)
 			if tt.expected != actual {
 				t.Errorf("Expected %s: %s, got %s", tt.label, tt.expected, actual)
@@ -141,7 +141,7 @@ func TestForwardAuthMiddlewareUnauthorized(t *testing.T) {
 	forwardBody := `{"k1": "v1", "k2": "v2"}`
 	method := "GET"
 
-	trustForwardHeaderTest := []struct {
+	tests := []struct {
 		label    string
 		header   string
 		expected string
@@ -163,7 +163,7 @@ func TestForwardAuthMiddlewareUnauthorized(t *testing.T) {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"error":"unauthorized"}`))
 
-		for _, tt := range trustForwardHeaderTest {
+		for _, tt := range tests {
 			actual := r.Header.Get(tt.header)
 			if tt.expected != actual {
 				t.Errorf("Expected %s: %s, got %s", tt.label, tt.expected, actual)
