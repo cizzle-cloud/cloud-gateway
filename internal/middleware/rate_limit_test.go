@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/config"
 	"github.com/cizzle-cloud/cloud-gateway/internal/request"
-	ratelimiter "github.com/cizzle-cloud/rate-limiter"
 )
 
-func setupRateLimitHandler(t *testing.T, c *request.Context, rl *ratelimiter.RateLimiter, algo ratelimiter.RateLimitAlgo) http.Handler {
+func setupRateLimitHandler(t *testing.T, c *request.Context, cfg *config.RateLimitConfig) http.Handler {
 	t.Helper()
 
 	protectedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -23,19 +23,23 @@ func setupRateLimitHandler(t *testing.T, c *request.Context, rl *ratelimiter.Rat
 		}
 	})
 
-	return NewRateLimitMiddleware(c, rl, algo)(protectedHandler)
+	return NewRateLimitMiddleware(c, cfg)(protectedHandler)
 }
 
 func TestRateLimitAllowed(t *testing.T) {
-	// c, _ := request.NewContext([]string{"192.0.2.1", "192.168.1.1"}, []string{"X-Forwarded-For"})
 	c, _ := request.NewContext([]string{}, []string{})
-	rl := ratelimiter.NewRateLimiter(time.Minute, time.Minute)
-	algo := ratelimiter.NewTokenBucket(10, 1, time.Minute)
+	cfg := config.RateLimitConfig{
+		Algorithm:       "token_bucket",
+		Ttl:             time.Minute,
+		CleanupInterval: time.Minute,
+		Capacity:        10,
+		RefillTokens:    1,
+		RefillInterval:  time.Minute,
+	}
 
-	handler := setupRateLimitHandler(t, c, rl, algo)
+	handler := setupRateLimitHandler(t, c, &cfg)
 
 	req := httptest.NewRequest("GET", "/protected", nil)
-	// req.Header.Set("X-Forwarded-For", "192.168.1.1")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -52,10 +56,16 @@ func TestRateLimitAllowed(t *testing.T) {
 
 func TestRateLimitBlocked(t *testing.T) {
 	c, _ := request.NewContext([]string{}, []string{})
-	rl := ratelimiter.NewRateLimiter(time.Minute, time.Minute)
-	algo := ratelimiter.NewTokenBucket(0, 0, time.Minute)
+	cfg := config.RateLimitConfig{
+		Algorithm:       "token_bucket",
+		Ttl:             time.Minute,
+		CleanupInterval: time.Minute,
+		Capacity:        0,
+		RefillTokens:    0,
+		RefillInterval:  time.Minute,
+	}
 
-	handler := setupRateLimitHandler(t, c, rl, algo)
+	handler := setupRateLimitHandler(t, c, &cfg)
 
 	req := httptest.NewRequest("GET", "/protected", nil)
 	w := httptest.NewRecorder()
@@ -74,11 +84,16 @@ func TestRateLimitBlocked(t *testing.T) {
 
 func TestRateLimitMultipleClients(t *testing.T) {
 	c, _ := request.NewContext([]string{"192.0.2.1", "192.168.1.1", "192.168.1.2"}, []string{"X-Forwarded-For"})
+	cfg := config.RateLimitConfig{
+		Algorithm:       "token_bucket",
+		Ttl:             time.Minute,
+		CleanupInterval: time.Minute,
+		Capacity:        2,
+		RefillTokens:    0,
+		RefillInterval:  time.Minute,
+	}
 
-	rl := ratelimiter.NewRateLimiter(time.Minute, time.Minute)
-	algo := ratelimiter.NewTokenBucket(2, 0, time.Minute)
-
-	handler := setupRateLimitHandler(t, c, rl, algo)
+	handler := setupRateLimitHandler(t, c, &cfg)
 
 	tests := []struct {
 		name         string
@@ -121,6 +136,7 @@ func TestRateLimitMultipleClients(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/protected", nil)
 			req.Header.Set("X-Forwarded-For", tt.clientIP)
+			t.Logf("%s: remote ip: %s", tt.name, request.RemoteIP(req))
 			t.Logf("%s: client ip: %s", tt.name, request.ClientIP(c, req))
 			w := httptest.NewRecorder()
 

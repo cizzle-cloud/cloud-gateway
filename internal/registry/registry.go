@@ -11,7 +11,6 @@ import (
 	"github.com/cizzle-cloud/cloud-gateway/internal/request"
 	"github.com/cizzle-cloud/cloud-gateway/internal/route"
 	"github.com/cizzle-cloud/cloud-gateway/internal/router"
-	ratelimiter "github.com/cizzle-cloud/rate-limiter"
 )
 
 const (
@@ -50,8 +49,7 @@ func resolveMiddleware(mw string, c *request.Context, cfg *config.Config) middle
 	var handler middleware.HTTPFunc
 
 	if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
-		algo, rl := parseRateLimitCfg(rateLimitCfg)
-		handler = middleware.NewRateLimitMiddleware(c, algo, rl)
+		handler = middleware.NewRateLimitMiddleware(c, rateLimitCfg)
 	} else if forwardAuthCfg, ok := cfg.ForwardAuth[mw]; ok {
 		handler = middleware.NewForwardAuthMiddleware(c, forwardAuthCfg)
 	} else {
@@ -69,21 +67,6 @@ func resolveMiddlewareList(mwl []string, c *request.Context, cfg *config.Config)
 	}
 
 	return handlers
-}
-
-func parseRateLimitCfg(cfg *config.RateLimitConfig) (*ratelimiter.RateLimiter, ratelimiter.RateLimitAlgo) {
-	var algo ratelimiter.RateLimitAlgo
-
-	switch algoType := cfg.Algorithm; algoType {
-	case "fixed_window_counter":
-		algo = ratelimiter.NewFixedWindowCounter(cfg.Limit, cfg.WindowSize)
-	case "token_bucket":
-		algo = ratelimiter.NewTokenBucket(cfg.Capacity, cfg.RefillTokens, cfg.RefillInterval)
-	}
-
-	rl := ratelimiter.NewRateLimiter(cfg.Ttl, cfg.CleanupInterval)
-
-	return rl, algo
 }
 
 func parseRoutes(c *request.Context, cfg *config.Config) []route.Route {
