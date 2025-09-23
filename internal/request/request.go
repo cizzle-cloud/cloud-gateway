@@ -14,7 +14,7 @@ type Context struct {
 }
 
 func NewContext(trustedProxies, trustHeaders []string) (*Context, error) {
-	trustedCIDRs, err := trustedCIDRs(trustedProxies)
+	trustedCIDRs, err := getTrustedCIDRs(trustedProxies)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,8 @@ func (c *Context) isTrustedProxy(ip net.IP) bool {
 	return false
 }
 
-// validateHeader will parse a header value and return the client IP address.
+// validateHeader will parse a header value and return the client IP address
+// and a boolean indicating if header is valid.
 func (c *Context) validateHeader(value string) (string, bool) {
 	if value == "" {
 		return "", false
@@ -50,9 +51,9 @@ func (c *Context) validateHeader(value string) (string, bool) {
 	return "", false
 }
 
-// trustedCIDRs converts a list of IPs or CIDR strings into a slice of *net.IPNet.
+// getTrustedCIDRs converts a list of IPs or CIDR strings into a slice of *net.IPNet.
 // Plain IPs are converted to single-host CIDRs (/32 for IPv4, /128 for IPv6).
-func trustedCIDRs(trustedProxies []string) ([]*net.IPNet, error) {
+func getTrustedCIDRs(trustedProxies []string) ([]*net.IPNet, error) {
 	if trustedProxies == nil {
 		return nil, nil
 	}
