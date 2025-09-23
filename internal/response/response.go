@@ -1,7 +1,7 @@
 package response
 
 import (
-	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 )
@@ -10,8 +10,8 @@ import (
 func WriteJSONError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	errorResponse := map[string]string{"error": message}
-	if err := json.NewEncoder(w).Encode(errorResponse); err != nil {
+	_, err := w.Write([]byte(fmt.Sprintf(`{"error":"%s"}`, message)))
+	if err != nil {
 		log.Printf("[ERROR] Failed to encode JSON error response: %v", err)
 	}
 }

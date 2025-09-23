@@ -28,8 +28,7 @@ func TestRouteParsing(t *testing.T) {
 	if err != nil {
 		t.Logf("error: %v", err)
 	}
-	rr := &RouteRegistry{}
-	rr.FromConfig(cfg)
+	rr := New(cfg)
 
 	route1 := route.Route{
 		Prefix:       "/foo",
@@ -109,11 +108,11 @@ func TestRouteParsing(t *testing.T) {
 }
 
 func TestMiddlewareParsing(t *testing.T) {
-	cfg, _ := config.LoadConfig("./route_config.yaml", "yaml")
-
-	rr := &RouteRegistry{}
-	rr.FromConfig(cfg)
-
+	cfg, err := config.LoadConfig("testdata/route_config.yaml", "yaml")
+	if err != nil {
+		t.Logf("error: %v", err)
+	}
+	rr := New(cfg)
 	expectedRouteMiddleware := [8]int{1, 2, 1, 0, 0, 0}
 
 	expectedDomainMiddleware := [2]int{1, 2}

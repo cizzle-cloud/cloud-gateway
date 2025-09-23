@@ -2,28 +2,29 @@ package middleware
 
 import (
 	"log"
-	"net"
 	"net/http"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/config"
+	"github.com/cizzle-cloud/cloud-gateway/internal/request"
+	"github.com/cizzle-cloud/cloud-gateway/internal/response"
 	ratelimiter "github.com/cizzle-cloud/rate-limiter"
 )
 
 //TODO: For future not rate limit only based per client IP?
 
-func NewRateLimitMiddleware(rl *ratelimiter.RateLimiter, algo ratelimiter.RateLimitAlgo) HTTPFunc {
+func NewRateLimitMiddleware(c *request.Context, cfg *config.RateLimitConfig) HTTPFunc {
+	rl := ratelimiter.NewRateLimiter(cfg.Ttl, cfg.CleanupInterval)
 	return func(next HTTPHandler) HTTPHandler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
-			if err != nil {
-				clientIP = r.RemoteAddr
-			}
+			clientIP := request.ClientIP(c, r)
 
 			if !rl.Exists(clientIP) {
+				algo := createRateLimitAlgorithm(cfg)
 				rl.Add(clientIP, algo)
 			}
 			if !rl.Allow(clientIP) {
-				http.Error(w, `{"error":"rate limit exceeded"}`, http.StatusTooManyRequests)
 				log.Printf("[MIDDLEWARE] rate limit exceeded for client %s", clientIP)
+				response.WriteJSONError(w, http.StatusTooManyRequests, "rate limit exceeded")
 				return
 			}
 
@@ -33,17 +34,14 @@ func NewRateLimitMiddleware(rl *ratelimiter.RateLimiter, algo ratelimiter.RateLi
 	}
 }
 
-// return func(c *gin.Context) {
-// clientIP := c.ClientIP()
-// if !rl.Exists(clientIP) {
-// rl.Add(clientIP, algo)
-// }
-// if !rl.Allow(clientIP) {
-// c.JSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
-// log.Printf("[MIDDLEWARE] rate limit exceeded for client %s:", clientIP)
-// c.Abort()
-// return
-// }
-//
-// c.Next()
-// }
+func createRateLimitAlgorithm(cfg *config.RateLimitConfig) ratelimiter.RateLimitAlgo {
+	var algo ratelimiter.RateLimitAlgo
+
+	switch algoType := cfg.Algorithm; algoType {
+	case "fixed_window_counter":
+		algo = ratelimiter.NewFixedWindowCounter(cfg.Limit, cfg.WindowSize)
+	case "token_bucket":
+		algo = ratelimiter.NewTokenBucket(cfg.Capacity, cfg.RefillTokens, cfg.RefillInterval)
+	}
+	return algo
+}

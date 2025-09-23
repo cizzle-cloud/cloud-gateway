@@ -76,8 +76,6 @@ type ForwardAuthConfig struct {
 	CertFilepath         string        `json:"cert_filepath" yaml:"cert_filepath"`
 }
 
-type NoCachePolicyConfig struct{}
-
 type EnvConfig struct {
 	Host           string   `json:"HOST" yaml:"HOST"`
 	Port           int      `json:"PORT" yaml:"PORT"`
@@ -85,12 +83,12 @@ type EnvConfig struct {
 	KeyFilepath    string   `json:"KEY_FILEPATH" yaml:"KEY_FILEPATH"`
 	Mode           string   `json:"MODE" yaml:"MODE"`
 	TrustedProxies []string `json:"TRUSTED_PROXIES" yaml:"TRUSTED_PROXIES"`
+	TrustHeaders   []string `json:"TRUST_HEADERS" yaml:"TRUST_HEADERS"`
 }
 
 type Config struct {
 	RateLimiters     map[string]*RateLimitConfig       `json:"rate_limiters" yaml:"rate_limiters"`
 	ForwardAuth      map[string]*ForwardAuthConfig     `json:"forward_auth" yaml:"forward_auth"`
-	NoCachePolicies  map[string]*NoCachePolicyConfig   `json:"no_cache_policies" yaml:"no_cache_policies"`
 	MiddlewareGroups map[string]*MiddlewareGroupConfig `json:"middleware_groups" yaml:"middleware_groups"`
 	Routes           []*RouteConfig                    `json:"routes" yaml:"routes"`
 	DomainRoutes     []*DomainRouteConfig              `json:"domain_routes" yaml:"domain_routes"`
@@ -374,6 +372,7 @@ func (cfg *Config) setDefaults() {
 			KeyFilepath:    "",
 			Mode:           "",
 			TrustedProxies: []string{},
+			TrustHeaders:   []string{},
 		}
 	}
 	cfg.Env.setDefaults()
@@ -412,6 +411,10 @@ func (cfg *EnvConfig) setDefaults() {
 
 	if len(cfg.TrustedProxies) == 0 {
 		cfg.TrustedProxies = []string{"0.0.0.0/0", "::/0"}
+	}
+
+	if len(cfg.TrustHeaders) == 0 {
+		cfg.TrustHeaders = []string{"X-Forwarded-For", "X-Real-IP"}
 	}
 }
 
