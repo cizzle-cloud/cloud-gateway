@@ -6,11 +6,11 @@ import (
 	"github.com/cizzle-cloud/cloud-gateway/internal/middleware"
 )
 
-type Router interface {
+type Base interface {
 }
 
 type HTTPRouter interface {
-	Router
+	Base
 	Run(addr string)
 	RunTLS(addr, certFile, keyFile string)
 	Handle(method, path string, handler http.Handler, middleware ...middleware.HTTPFunc)
@@ -19,9 +19,15 @@ type HTTPRouter interface {
 }
 
 type WebSocketRouter interface {
-	Router
+	Base
 }
 
 type GRPCRouter interface {
-	Router
+	Base
+	ServeGRPC()
+}
+
+type TCPRouter interface {
+	Base
+	ServeTCP()
 }
