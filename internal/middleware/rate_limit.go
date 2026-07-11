@@ -17,12 +17,8 @@ func NewRateLimitMiddleware(c *request.Context, cfg *config.RateLimitConfig) HTT
 	return func(next HTTPHandler) HTTPHandler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			clientIP := request.ClientIP(c, r)
-
-			if !rl.Exists(clientIP) {
-				algo := createRateLimitAlgorithm(cfg)
-				rl.Add(clientIP, algo)
-			}
-			if !rl.Allow(clientIP) {
+			record := rl.GetOrCreate(clientIP, createRateLimitAlgorithm(cfg))
+			if !record.Allow() {
 				log.Printf("[MIDDLEWARE] rate limit exceeded for client %s", clientIP)
 				response.WriteJSONError(w, http.StatusTooManyRequests, "rate limit exceeded")
 				return
