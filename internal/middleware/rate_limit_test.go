@@ -3,6 +3,8 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -26,7 +28,7 @@ func setupRateLimitHandler(t *testing.T, c *request.Context, cfg *config.RateLim
 	return NewRateLimitMiddleware(c, cfg)(protectedHandler)
 }
 
-func TestRateLimitAllowed(t *testing.T) {
+func TestRateLimit_Allowed(t *testing.T) {
 	c, _ := request.NewContext([]string{}, []string{})
 	cfg := config.RateLimitConfig{
 		Algorithm:       "token_bucket",
@@ -54,7 +56,7 @@ func TestRateLimitAllowed(t *testing.T) {
 	}
 }
 
-func TestRateLimitBlocked(t *testing.T) {
+func TestRateLimit_Blocked(t *testing.T) {
 	c, _ := request.NewContext([]string{}, []string{})
 	cfg := config.RateLimitConfig{
 		Algorithm:       "token_bucket",
@@ -82,7 +84,7 @@ func TestRateLimitBlocked(t *testing.T) {
 	}
 }
 
-func TestRateLimitMultipleClients(t *testing.T) {
+func TestRateLimit_MultipleClients(t *testing.T) {
 	c, _ := request.NewContext([]string{"192.0.2.1", "192.168.1.1", "192.168.1.2"}, []string{"X-Forwarded-For"})
 	cfg := config.RateLimitConfig{
 		Algorithm:       "token_bucket",
@@ -147,5 +149,52 @@ func TestRateLimitMultipleClients(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestRateLimit_Concurrent(t *testing.T) {
+	c, _ := request.NewContext([]string{}, []string{})
+	cfg := config.RateLimitConfig{
+		Algorithm:       "token_bucket",
+		Ttl:             time.Minute,
+		CleanupInterval: time.Minute,
+		Capacity:        50,
+		RefillTokens:    0,
+		RefillInterval:  time.Minute,
+	}
+
+	handler := setupRateLimitHandler(t, c, &cfg)
+
+	var allowed atomic.Int32
+	var rejected atomic.Int32
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			req := httptest.NewRequest("GET", "/protected", nil)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+			switch w.Code {
+			case http.StatusOK:
+				allowed.Add(1)
+			case http.StatusTooManyRequests:
+				rejected.Add(1)
+			default:
+				t.Errorf("Unexpected status code: %d", w.Code)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if allowed.Load()+rejected.Load() != 100 {
+		t.Errorf("Expected 100 total responses, got %d", allowed.Load()+rejected.Load())
+	}
+	if allowed.Load() != 50 {
+		t.Errorf("Expected exactly 50 allowed, got %d", allowed.Load())
+	}
+	if rejected.Load() != 50 {
+		t.Errorf("Expected exactly 50 rejected, got %d", rejected.Load())
 	}
 }
