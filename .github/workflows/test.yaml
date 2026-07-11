@@ -26,7 +26,7 @@ jobs:
         run: go mod download && go mod verify
 
       - name: Build
-        run: go build -v .
+        run: go build -v -o main ./cmd/gateway
 
       - name: Test
-        run: go test -v ./...
+        run: go test -v -race -cover ./...

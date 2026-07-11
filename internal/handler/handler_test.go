@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestRedirectHandler(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		Name           string
 		Method         string
 		Body           string
@@ -51,8 +51,8 @@ func TestRedirectHandler(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
 			var finalReceived struct {
 				Method string
 				Body   string
@@ -67,13 +67,13 @@ func TestRedirectHandler(t *testing.T) {
 			defer finalServer.Close()
 
 			redirectServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, finalServer.URL, tc.Code)
+				http.Redirect(w, r, finalServer.URL, tt.Code)
 			}))
 			defer redirectServer.Close()
 
 			client := &http.Client{}
 
-			req, err := http.NewRequest(tc.Method, redirectServer.URL, bytes.NewBuffer([]byte(tc.Body)))
+			req, err := http.NewRequest(tt.Method, redirectServer.URL, bytes.NewBuffer([]byte(tt.Body)))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -85,11 +85,11 @@ func TestRedirectHandler(t *testing.T) {
 			}
 			defer resp.Body.Close()
 
-			if finalReceived.Method != tc.ExpectedMethod {
-				t.Errorf("Expected method %s, got %s", tc.ExpectedMethod, finalReceived.Method)
+			if finalReceived.Method != tt.ExpectedMethod {
+				t.Errorf("Expected method %s, got %s", tt.ExpectedMethod, finalReceived.Method)
 			}
-			if finalReceived.Body != tc.ExpectedBody {
-				t.Errorf("Expected body %q, got %q", tc.ExpectedBody, finalReceived.Body)
+			if finalReceived.Body != tt.ExpectedBody {
+				t.Errorf("Expected body %q, got %q", tt.ExpectedBody, finalReceived.Body)
 			}
 		})
 	}

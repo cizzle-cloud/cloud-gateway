@@ -1,11 +1,11 @@
 package main
 
 import (
-	"cloud_gateway/config"
-	"cloud_gateway/registry"
 	"fmt"
 
-	"github.com/gin-gonic/gin"
+	"github.com/cizzle-cloud/cloud-gateway/internal/config"
+	"github.com/cizzle-cloud/cloud-gateway/internal/registry"
+	"github.com/cizzle-cloud/cloud-gateway/internal/router"
 )
 
 func main() {
@@ -21,22 +21,19 @@ func main() {
 		return
 	}
 
-	gin.SetMode(cfg.Env.GinMode)
-	r := gin.Default()
-	r.SetTrustedProxies(cfg.Env.TrustedProxies)
-	rr := &registry.RouteRegistry{}
-	rr.FromConfig(cfg)
-	rr.RegisterRoutes(r)
-	rr.RegisterDomainRoutes(r)
+	httpRouter := router.NewGinRouter(cfg.Env.Mode, cfg.Env.TrustedProxies)
 
+	rr := registry.New(cfg)
+	rr.RegisterRoutes(httpRouter)
+	rr.RegisterDomainRoutes(httpRouter)
 	addr := fmt.Sprintf("%s:%v", cfg.Env.Host, cfg.Env.Port)
 	certFilepath := cfg.Env.CertFilepath
 	keyFilepath := cfg.Env.KeyFilepath
 	if certFilepath == "" || keyFilepath == "" {
-		r.Run(addr)
+		httpRouter.Run(addr)
 	} else {
 
-		r.RunTLS(addr, certFilepath, keyFilepath)
+		httpRouter.RunTLS(addr, certFilepath, keyFilepath)
 	}
 
 }

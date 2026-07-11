@@ -1,7 +1,6 @@
 package config
 
 import (
-	"cloud_gateway/errors"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cizzle-cloud/cloud-gateway/internal/errors"
 	"gopkg.in/yaml.v3"
 )
 
@@ -76,21 +76,19 @@ type ForwardAuthConfig struct {
 	CertFilepath         string        `json:"cert_filepath" yaml:"cert_filepath"`
 }
 
-type NoCachePolicyConfig struct{}
-
 type EnvConfig struct {
 	Host           string   `json:"HOST" yaml:"HOST"`
 	Port           int      `json:"PORT" yaml:"PORT"`
 	CertFilepath   string   `json:"CERT_FILEPATH" yaml:"CERT_FILEPATH"`
 	KeyFilepath    string   `json:"KEY_FILEPATH" yaml:"KEY_FILEPATH"`
-	GinMode        string   `json:"GIN_MODE" yaml:"GIN_MODE"`
+	Mode           string   `json:"MODE" yaml:"MODE"`
 	TrustedProxies []string `json:"TRUSTED_PROXIES" yaml:"TRUSTED_PROXIES"`
+	TrustHeaders   []string `json:"TRUST_HEADERS" yaml:"TRUST_HEADERS"`
 }
 
 type Config struct {
 	RateLimiters     map[string]*RateLimitConfig       `json:"rate_limiters" yaml:"rate_limiters"`
 	ForwardAuth      map[string]*ForwardAuthConfig     `json:"forward_auth" yaml:"forward_auth"`
-	NoCachePolicies  map[string]*NoCachePolicyConfig   `json:"no_cache_policies" yaml:"no_cache_policies"`
 	MiddlewareGroups map[string]*MiddlewareGroupConfig `json:"middleware_groups" yaml:"middleware_groups"`
 	Routes           []*RouteConfig                    `json:"routes" yaml:"routes"`
 	DomainRoutes     []*DomainRouteConfig              `json:"domain_routes" yaml:"domain_routes"`
@@ -350,8 +348,8 @@ func (cfg *EnvConfig) validate() string {
 		return "invalid 'PORT'. Port number must be in the range of 0-65535"
 	}
 
-	if cfg.GinMode != "" && cfg.GinMode != "release" && cfg.GinMode != "debug" {
-		return "invalid 'GIN_MODE'. Gin mode must be either 'release' or 'debug'"
+	if cfg.Mode != "" && cfg.Mode != "release" && cfg.Mode != "debug" {
+		return "invalid 'MODE'. Gin mode must be either 'release' or 'debug'"
 	}
 
 	return ""
@@ -372,8 +370,9 @@ func (cfg *Config) setDefaults() {
 			Port:           0,
 			CertFilepath:   "",
 			KeyFilepath:    "",
-			GinMode:        "",
+			Mode:           "",
 			TrustedProxies: []string{},
+			TrustHeaders:   []string{},
 		}
 	}
 	cfg.Env.setDefaults()
@@ -406,12 +405,16 @@ func (cfg *EnvConfig) setDefaults() {
 		cfg.Host = "0.0.0.0"
 	}
 
-	if cfg.GinMode == "" {
-		cfg.GinMode = "release"
+	if cfg.Mode == "" {
+		cfg.Mode = "release"
 	}
 
 	if len(cfg.TrustedProxies) == 0 {
 		cfg.TrustedProxies = []string{"0.0.0.0/0", "::/0"}
+	}
+
+	if len(cfg.TrustHeaders) == 0 {
+		cfg.TrustHeaders = []string{"X-Forwarded-For", "X-Real-IP"}
 	}
 }
 

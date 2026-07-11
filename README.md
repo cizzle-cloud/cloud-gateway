@@ -1,7 +1,6 @@
 # Cloud Gateway
 
 [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/yourusername/cloud-gateway/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/yourusername/cloud-gateway)](https://goreportcard.com/report/github.com/yourusername/cloud-gateway)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 
 A highly configurable API gateway/reverse proxy with declarative YAML/JSON configuration, supporting advanced routing, middleware, and domain-based routing.
@@ -64,6 +63,3 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## Changelog
 For detailed changelog information, see [CHANGELOG](CHANGELOG.md).
-
----
-**Made with ❤️ by [Cizzle Cloud](https://github.com/cizzle-cloud)**
