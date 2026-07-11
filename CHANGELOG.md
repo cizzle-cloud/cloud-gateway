@@ -4,14 +4,14 @@
 
 ### Added
 
-- Added 'TrustHeaders' in config
-- Added request context with IP related methods
-- Added middleware interfaces and core types
-- Added router interface
+- 'TrustHeaders' in config
+- request context with IP related methods
+- middleware interfaces and core types
+- router interface
 
 ### Fixed
 
-- Fixed rate limit algo shared across clients instead of per-client instances
+- rate limit algo shared across clients instead of per-client instances
 
 ### Changed
 
