@@ -1,0 +1,123 @@
+version: "2"
+
+run:
+  # Include test files in analysis (default is true in v2).
+  tests: true
+
+linters:
+  # Core linters are enabled here explicitly (also part of `default: standard`)
+  # so the required baseline is visible at a glance.
+  default: standard
+  enable:
+    - errcheck       # unchecked error return values
+    - govet          # suspicious constructs (go vet)
+    - ineffassign    # assignments that are never used
+    - staticcheck    # bugs + performance + style (gopls-grade analysis)
+    - unused         # unused code
+    - gocyclo        # cyclomatic complexity guardrail
+    - bodyclose      # ensure HTTP response bodies are closed
+    - canonicalheader # header keys must use canonical casing
+    - copyloopvar    # Go 1.22: copy variables are never used in range loops
+    - durationcheck  # check duration multiplication/subtraction mistakes
+    - errname        # error types end in Error, error vars start with Err
+    - errorlint      # error wrapping / errors.Is / errors.As best practices
+    - gomoddirectives # enforce idiomatic go.mod formatting
+    - gosec          # security: gateway is security-sensitive
+    - gocritic       # high-value diagnostic, style, and performance checks
+    - goconst        # repeated strings that should be constants
+    - intrange       # Go 1.22: integer range loops
+    - misspell       # typos in comments and strings
+    - musttag        # enforce json/yaml struct tags on serialized fields
+    - nilerr         # returning nil despite a checked non-nil error
+    - nilnil         # functions must not return (nil value, nil error)
+    - noctx          # HTTP requests should use context
+    - nolintlint     # enforce meaningful //nolint directives
+    - perfsprint     # fmt.Sprintf string concatenation where possible
+    - predeclared    # no shadowing of predeclared identifiers (len, error)
+    - recvcheck      # consistent value/pointer receivers per type
+    - revive         # modern golint replacement (style)
+    - unconvert      # unnecessary type conversions
+    - unparam        # unreachable / unused function parameters
+    - usestdlibvars  # prefer http.MethodGet / http.StatusOK stdlib constants
+    - usetesting     # Go 1.22: standard library testing helpers
+    - testifylint    # testify correctness (also flags its absence in tests)
+    - thelper        # test helpers must call t.Helper()
+    - wastedassign   # assignments that are never used
+    - whitespace     # leading/trailing whitespace
+  settings:
+    errorlint:
+      # fmt.Errorf should use the %w verb instead of %v when wrapping.
+      errorf: true
+    govet:
+      enable:
+        - nilness # nil-pointer / impossible nil-check analysis
+        - shadow  # variable shadowing
+    gocyclo:
+      # Lower than the golangci default (30): keep functions readable.
+      min-complexity: 20
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - octalLiteral
+        - whyNoLint
+    gosec:
+      excludes:
+        - G402 # TLS minimum version check: termination handled externally
+    misspell:
+      locale: US
+    revive:
+      confidence: 0.1
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-naming
+        - name: error-strings
+        - name: errorf
+        - name: exported
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: unused-parameter
+        - name: var-naming
+    thelper: {}
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+    rules:
+      # Test code is intentionally more permissive.
+      - path: _test\.go
+        linters:
+          - gocritic
+          - goconst
+          - gomoddirectives
+          - gosec # test fixtures need not satisfy production security rules
+          - perfsprint
+          - unparam
+
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      extra:
+        group-params: true
+    goimports:
+      local-prefixes:
+        - github.com/cizzle-cloud/cloud-gateway
+
+issues:
+  # do not cap issues per linter/file (0 == unlimited)
+  max-issues-per-linter: 0
+  max-same-issues: 0
