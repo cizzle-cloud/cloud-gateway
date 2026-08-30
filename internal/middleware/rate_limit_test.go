@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -15,7 +16,7 @@ import (
 func setupRateLimitHandler(t *testing.T, c *request.Context, cfg *config.RateLimitConfig) http.Handler {
 	t.Helper()
 
-	protectedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	protectedHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte(`{"message":"OK"}`))
@@ -32,7 +33,7 @@ func TestRateLimit_Allowed(t *testing.T) {
 	c, _ := request.NewContext([]string{}, []string{})
 	cfg := config.RateLimitConfig{
 		Algorithm:       "token_bucket",
-		Ttl:             time.Minute,
+		TTL:             time.Minute,
 		CleanupInterval: time.Minute,
 		Capacity:        10,
 		RefillTokens:    1,
@@ -41,7 +42,7 @@ func TestRateLimit_Allowed(t *testing.T) {
 
 	handler := setupRateLimitHandler(t, c, &cfg)
 
-	req := httptest.NewRequest("GET", "/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/protected", nil)
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -60,7 +61,7 @@ func TestRateLimit_Blocked(t *testing.T) {
 	c, _ := request.NewContext([]string{}, []string{})
 	cfg := config.RateLimitConfig{
 		Algorithm:       "token_bucket",
-		Ttl:             time.Minute,
+		TTL:             time.Minute,
 		CleanupInterval: time.Minute,
 		Capacity:        0,
 		RefillTokens:    0,
@@ -69,7 +70,7 @@ func TestRateLimit_Blocked(t *testing.T) {
 
 	handler := setupRateLimitHandler(t, c, &cfg)
 
-	req := httptest.NewRequest("GET", "/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/protected", nil)
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -88,7 +89,7 @@ func TestRateLimit_MultipleClients(t *testing.T) {
 	c, _ := request.NewContext([]string{"192.0.2.1", "192.168.1.1", "192.168.1.2"}, []string{"X-Forwarded-For"})
 	cfg := config.RateLimitConfig{
 		Algorithm:       "token_bucket",
-		Ttl:             time.Minute,
+		TTL:             time.Minute,
 		CleanupInterval: time.Minute,
 		Capacity:        2,
 		RefillTokens:    0,
@@ -136,7 +137,7 @@ func TestRateLimit_MultipleClients(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/protected", nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/protected", nil)
 			req.Header.Set("X-Forwarded-For", tt.clientIP)
 			t.Logf("%s: remote ip: %s", tt.name, request.RemoteIP(req))
 			t.Logf("%s: client ip: %s", tt.name, request.ClientIP(c, req))
@@ -147,7 +148,6 @@ func TestRateLimit_MultipleClients(t *testing.T) {
 			if w.Code != tt.expectedCode {
 				t.Errorf("%s: Expected status code: %v, got %v", tt.name, tt.expectedCode, w.Code)
 			}
-
 		})
 	}
 }
@@ -156,7 +156,7 @@ func TestRateLimit_Concurrent(t *testing.T) {
 	c, _ := request.NewContext([]string{}, []string{})
 	cfg := config.RateLimitConfig{
 		Algorithm:       "token_bucket",
-		Ttl:             time.Minute,
+		TTL:             time.Minute,
 		CleanupInterval: time.Minute,
 		Capacity:        50,
 		RefillTokens:    0,
@@ -169,11 +169,11 @@ func TestRateLimit_Concurrent(t *testing.T) {
 	var rejected atomic.Int32
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			req := httptest.NewRequest("GET", "/protected", nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/protected", nil)
 			w := httptest.NewRecorder()
 			handler.ServeHTTP(w, req)
 			switch w.Code {

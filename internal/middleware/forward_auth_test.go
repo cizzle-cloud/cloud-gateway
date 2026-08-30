@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +17,7 @@ import (
 func setupTestServerHandler(t *testing.T, cfg *config.ForwardAuthConfig) http.Handler {
 	t.Helper()
 
-	protectedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	protectedHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte(`{"message":"OK"}`))
@@ -58,13 +59,12 @@ func TestForwardAuthMiddlewareAuthorized(t *testing.T) {
 		http.SetCookie(w, &http.Cookie{Name: "session", Value: "abc123"})
 		http.SetCookie(w, &http.Cookie{Name: "csrf", Value: "efg456"})
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message":"authorized"}`))
+		_, _ = w.Write([]byte(`{"message":"authorized"}`))
 
 		for _, tt := range tests {
 			actual := r.Header.Get(tt.header)
 			if tt.expected != actual {
 				t.Errorf("Expected %s: %s, got %s", tt.label, tt.expected, actual)
-
 			}
 		}
 
@@ -84,7 +84,7 @@ func TestForwardAuthMiddlewareAuthorized(t *testing.T) {
 	defer authServer.Close()
 
 	cfg := config.ForwardAuthConfig{
-		Url:                  authServer.URL,
+		URL:                  authServer.URL,
 		Timeout:              2 * time.Second,
 		Method:               method,
 		ForwardBody:          true,
@@ -98,7 +98,7 @@ func TestForwardAuthMiddlewareAuthorized(t *testing.T) {
 
 	// Mock request
 	body := bytes.NewBuffer([]byte(forwardBody))
-	req := httptest.NewRequest("GET", "/protected", body)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/protected", body)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authorizationHeader)
 	req.Header.Set("Mock-Header", "mock-header")
@@ -161,13 +161,12 @@ func TestForwardAuthMiddlewareUnauthorized(t *testing.T) {
 		w.Header().Set("X-Test-Header-2", "test_header_2")
 		http.SetCookie(w, &http.Cookie{Name: "session", Value: "abc123"})
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"unauthorized"}`))
+		_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
 
 		for _, tt := range tests {
 			actual := r.Header.Get(tt.header)
 			if tt.expected != actual {
 				t.Errorf("Expected %s: %s, got %s", tt.label, tt.expected, actual)
-
 			}
 		}
 
@@ -187,7 +186,7 @@ func TestForwardAuthMiddlewareUnauthorized(t *testing.T) {
 	defer authServer.Close()
 
 	cfg := config.ForwardAuthConfig{
-		Url:                authServer.URL,
+		URL:                authServer.URL,
 		Timeout:            2 * time.Second,
 		Method:             method,
 		ForwardBody:        false,
@@ -197,7 +196,7 @@ func TestForwardAuthMiddlewareUnauthorized(t *testing.T) {
 	handler := setupTestServerHandler(t, &cfg)
 
 	body := bytes.NewBuffer([]byte(forwardBody))
-	req := httptest.NewRequest("GET", "/protected", body)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/protected", body)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authorizationHeader)
 	req.Header.Set("Mock-Header", "mock-header")
@@ -229,15 +228,15 @@ func TestForwardAuthMiddlewareUnauthorized(t *testing.T) {
 }
 
 func TestForwardAuthMiddlewareTimeout(t *testing.T) {
-	authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(3 * time.Second)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message":"authorized"}`))
+		_, _ = w.Write([]byte(`{"message":"authorized"}`))
 	}))
 	defer authServer.Close()
 
 	cfg := config.ForwardAuthConfig{
-		Url:                authServer.URL,
+		URL:                authServer.URL,
 		Timeout:            1 * time.Second,
 		Method:             "GET",
 		ForwardBody:        false,
@@ -246,7 +245,7 @@ func TestForwardAuthMiddlewareTimeout(t *testing.T) {
 
 	handler := setupTestServerHandler(t, &cfg)
 
-	req := httptest.NewRequest("GET", "/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/protected", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)

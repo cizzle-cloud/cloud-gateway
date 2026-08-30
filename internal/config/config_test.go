@@ -155,19 +155,21 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			name:        "rate limiter missing 'algorithm' field",
-			cfg:         &RateLimitConfig{Ttl: time.Hour, CleanupInterval: time.Hour},
+			cfg:         &RateLimitConfig{TTL: time.Hour, CleanupInterval: time.Hour},
 			expectedErr: "'algorithm' field is not specified for rate limiter",
 		},
 		{
 			name: "rate limiter has an invalid 'algorithm' type",
-			cfg: &RateLimitConfig{Ttl: time.Hour, CleanupInterval: time.Hour,
-				Algorithm: "INVALID"},
+			cfg: &RateLimitConfig{
+				TTL: time.Hour, CleanupInterval: time.Hour,
+				Algorithm: "INVALID",
+			},
 			expectedErr: "unknown rate limit algorithm 'INVALID' specified",
 		},
 		{
 			name: "fixed window counter algorithm has invalid 'capacity' field",
 			cfg: &RateLimitConfig{
-				Ttl:             time.Hour,
+				TTL:             time.Hour,
 				CleanupInterval: time.Hour,
 				Algorithm:       "fixed_window_counter",
 				Limit:           10,
@@ -179,7 +181,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "fixed window counter algorithm has invalid 'refill_tokens' field",
 			cfg: &RateLimitConfig{
-				Ttl:             time.Hour,
+				TTL:             time.Hour,
 				CleanupInterval: time.Hour,
 				Algorithm:       "fixed_window_counter",
 				Limit:           10,
@@ -191,7 +193,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "fixed window counter algorithm has invalid 'refill_interval' field",
 			cfg: &RateLimitConfig{
-				Ttl:             time.Hour,
+				TTL:             time.Hour,
 				CleanupInterval: time.Hour,
 				Algorithm:       "fixed_window_counter",
 				Limit:           10,
@@ -203,7 +205,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "fixed window counter algorithm has negative limit",
 			cfg: &RateLimitConfig{
-				Ttl:             time.Hour,
+				TTL:             time.Hour,
 				CleanupInterval: time.Hour,
 				Algorithm:       "fixed_window_counter",
 				Limit:           -10,
@@ -214,7 +216,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "token bucket algorithm has invalid 'limit' field",
 			cfg: &RateLimitConfig{
-				Ttl:             time.Hour,
+				TTL:             time.Hour,
 				CleanupInterval: time.Hour,
 				Algorithm:       "token_bucket",
 				Capacity:        10,
@@ -227,7 +229,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "token bucket algorithm has invalid 'window_size' field",
 			cfg: &RateLimitConfig{
-				Ttl:             time.Hour,
+				TTL:             time.Hour,
 				CleanupInterval: time.Hour,
 				Algorithm:       "token_bucket",
 				Capacity:        10,
@@ -240,7 +242,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "token bucket algorithm has negative capacity",
 			cfg: &RateLimitConfig{
-				Ttl:             time.Hour,
+				TTL:             time.Hour,
 				CleanupInterval: time.Hour,
 				Algorithm:       "token_bucket",
 				Capacity:        -10,
@@ -252,7 +254,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "token bucket algorithm has negative refill tokens",
 			cfg: &RateLimitConfig{
-				Ttl:             time.Hour,
+				TTL:             time.Hour,
 				CleanupInterval: time.Hour,
 				Algorithm:       "token_bucket",
 				Capacity:        10,
