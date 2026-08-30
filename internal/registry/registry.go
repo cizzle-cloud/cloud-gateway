@@ -20,8 +20,8 @@ const (
 
 type RouteRegistry struct {
 	Context      *request.Context
-	Routes       []route.Route
-	DomainRoutes []route.DomainRoute
+	Routes       []*route.Route
+	DomainRoutes []*route.DomainRoute
 }
 
 func New(cfg *config.Config) *RouteRegistry {
@@ -46,17 +46,17 @@ func resolveMiddlewareGroup(middlewareGroup string, c *request.Context, cfg *con
 }
 
 func resolveMiddleware(mw string, c *request.Context, cfg *config.Config) middleware.HTTPFunc {
-	var handler middleware.HTTPFunc
+	var h middleware.HTTPFunc
 
 	if rateLimitCfg, ok := cfg.RateLimiters[mw]; ok {
-		handler = middleware.NewRateLimitMiddleware(c, rateLimitCfg)
+		h = middleware.NewRateLimitMiddleware(c, rateLimitCfg)
 	} else if forwardAuthCfg, ok := cfg.ForwardAuth[mw]; ok {
-		handler = middleware.NewForwardAuthMiddleware(c, forwardAuthCfg)
+		h = middleware.NewForwardAuthMiddleware(c, forwardAuthCfg)
 	} else {
 		log.Fatalf("[ERROR] Unknown or unsupported middleware: %s", mw)
 	}
 
-	return handler
+	return h
 }
 
 func resolveMiddlewareList(mwl []string, c *request.Context, cfg *config.Config) []middleware.HTTPFunc {
@@ -69,11 +69,10 @@ func resolveMiddlewareList(mwl []string, c *request.Context, cfg *config.Config)
 	return handlers
 }
 
-func parseRoutes(c *request.Context, cfg *config.Config) []route.Route {
-	var routes []route.Route
+func parseRoutes(c *request.Context, cfg *config.Config) []*route.Route {
+	var routes []*route.Route
 
 	for _, r := range cfg.Routes {
-
 		resolvedMiddleware := append(
 			resolveMiddlewareGroup(r.MiddlewareGroup, c, cfg),
 			resolveMiddlewareList(r.Middleware, c, cfg)...,
@@ -104,7 +103,7 @@ func parseRoutes(c *request.Context, cfg *config.Config) []route.Route {
 }
 
 // Handle Proxy Target for prefix routes where no specific paths are defined
-func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []middleware.HTTPFunc) route.Route {
+func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []middleware.HTTPFunc) *route.Route {
 	if r.Prefix == "" || r.Prefix == "/" {
 		return route.NewRoute(r.Method, r.Prefix, r.Prefix, resolvedMiddleware).WithProxy(r.ProxyTarget)
 	}
@@ -113,11 +112,10 @@ func handleProxyRoute(r *config.RouteConfig, resolvedMiddleware []middleware.HTT
 }
 
 // Handle individual paths under the prefix
-func handlePathRoutes(c *request.Context, r *config.RouteConfig, cfg *config.Config, resolvedRouteMiddleware []middleware.HTTPFunc) []route.Route {
-	var pathRoutes []route.Route
+func handlePathRoutes(c *request.Context, r *config.RouteConfig, cfg *config.Config, resolvedRouteMiddleware []middleware.HTTPFunc) []*route.Route {
+	var pathRoutes []*route.Route
 
 	for _, path := range r.Paths {
-
 		resolvedPathMiddleware := append(
 			resolveMiddlewareGroup(path.MiddlewareGroup, c, cfg),
 			resolveMiddlewareList(path.Middleware, c, cfg)...,
@@ -129,7 +127,7 @@ func handlePathRoutes(c *request.Context, r *config.RouteConfig, cfg *config.Con
 		)
 
 		fixedPath := path.Path
-		var pathRoute route.Route
+		var pathRoute *route.Route
 		if path.ProxyTarget != "" {
 			pathRoute = route.NewRoute(path.Method, r.Prefix, r.Prefix+fixedPath+"/*path", resolvedMiddleware).
 				WithFixedPath(fixedPath).WithProxy(path.ProxyTarget)
@@ -150,8 +148,8 @@ func handlePathRoutes(c *request.Context, r *config.RouteConfig, cfg *config.Con
 	return pathRoutes
 }
 
-func parseDomainRoutes(c *request.Context, cfg *config.Config) []route.DomainRoute {
-	var domainRoutes []route.DomainRoute
+func parseDomainRoutes(c *request.Context, cfg *config.Config) []*route.DomainRoute {
+	var domainRoutes []*route.DomainRoute
 
 	for _, r := range cfg.DomainRoutes {
 		resolvedMiddleware := append(
@@ -175,37 +173,41 @@ func parseDomainRoutes(c *request.Context, cfg *config.Config) []route.DomainRou
 	return domainRoutes
 }
 
-func getRouteHandler(route route.Route) (http.Handler, int8) {
-	switch {
-	case route.ProxyTarget != "":
-		// TODO: implement the dynamic part of the path route.FixedPath+c.Param("path") coming from the request
-		return handler.ProxyRequest(route.ProxyTarget, path.Clean(route.FixedPath)), RouteHandle
+func getRouteHandler(r *route.Route) (h http.Handler, routeType int8) {
+	if r == nil {
+		return nil, RouteInvalidRoute
+	}
 
-	case route.RedirectTarget != "":
-		return handler.Redirect(route.RedirectTarget, route.RedirectCode), RouteHandle
+	switch {
+	case r.ProxyTarget != "":
+		// TODO: implement the dynamic part of the path route.FixedPath+c.Param("path") coming from the request
+		return handler.ProxyRequest(r.ProxyTarget, path.Clean(r.FixedPath)), RouteHandle
+
+	case r.RedirectTarget != "":
+		return handler.Redirect(r.RedirectTarget, r.RedirectCode), RouteHandle
 	default:
 		return nil, RouteInvalidRoute
 	}
 }
 
-func (rr *RouteRegistry) RegisterRoutes(router router.HTTPRouter) {
+func (rr *RouteRegistry) RegisterRoutes(rtr router.HTTPRouter) {
 	for _, route := range rr.Routes {
-		handler, routeType := getRouteHandler(route)
+		h, routeType := getRouteHandler(route)
 
 		switch routeType {
 		case RouteHandle:
-			router.Handle(route.Method, route.RelativePath, handler, route.Middleware...)
+			rtr.Handle(route.Method, route.RelativePath, h, route.Middleware...)
 		case RouteInvalidRoute:
 			log.Fatal("[ERROR] Invalid/Unknown route configuration")
 		}
 	}
 }
 
-func (rr *RouteRegistry) RegisterDomainRoutes(router router.HTTPRouter) {
+func (rr *RouteRegistry) RegisterDomainRoutes(rtr router.HTTPRouter) {
 	if len(rr.DomainRoutes) == 0 {
 		return
 	}
-	router.NoRoute(
+	rtr.NoRoute(
 		handler.ProxyDomain(rr.DomainRoutes),
 	)
 }

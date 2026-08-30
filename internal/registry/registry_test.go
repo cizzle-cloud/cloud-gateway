@@ -7,7 +7,7 @@ import (
 	"github.com/cizzle-cloud/cloud-gateway/internal/route"
 )
 
-func RoutesAreEqual(expected, actual route.Route) bool {
+func RoutesAreEqual(expected, actual *route.Route) bool {
 	c1 := expected.Method == actual.Method
 	c2 := expected.Prefix == actual.Prefix
 	c3 := expected.ProxyTarget == actual.ProxyTarget
@@ -17,7 +17,7 @@ func RoutesAreEqual(expected, actual route.Route) bool {
 	return c1 && c2 && c3 && c4 && c5 && c6
 }
 
-func DomainRoutesAreEqual(expected, actual route.DomainRoute) bool {
+func DomainRoutesAreEqual(expected, actual *route.DomainRoute) bool {
 	c1 := expected.Domain == actual.Domain
 	c2 := expected.ProxyTarget == actual.ProxyTarget
 	return c1 && c2
@@ -30,14 +30,14 @@ func TestRouteParsing(t *testing.T) {
 	}
 	rr := New(cfg)
 
-	route1 := route.Route{
+	route1 := &route.Route{
 		Prefix:       "/foo",
 		RelativePath: "/foo/*path",
 		Method:       "POST",
 		ProxyTarget:  "https://bar.com",
 	}
 
-	route2 := route.Route{
+	route2 := &route.Route{
 		Prefix:       "/foo",
 		RelativePath: "/foo/docs/todos/*path",
 		Method:       "GET",
@@ -45,7 +45,7 @@ func TestRouteParsing(t *testing.T) {
 		FixedPath:    "/docs/todos",
 	}
 
-	route3 := route.Route{
+	route3 := &route.Route{
 		Prefix:       "/foo",
 		RelativePath: "/foo/docs/templates/*path",
 		Method:       "PUT",
@@ -53,14 +53,14 @@ func TestRouteParsing(t *testing.T) {
 		FixedPath:    "/docs/templates",
 	}
 
-	route4 := route.Route{
+	route4 := &route.Route{
 		Prefix:         "/foobar",
 		Method:         "GET",
 		RedirectTarget: "https://xyzzy.com",
 		RedirectCode:   308,
 	}
 
-	route5 := route.Route{
+	route5 := &route.Route{
 		Prefix:         "/thud",
 		Method:         "GET",
 		RelativePath:   "/thud/foo",
@@ -69,7 +69,7 @@ func TestRouteParsing(t *testing.T) {
 		FixedPath:      "/foo",
 	}
 
-	route6 := route.Route{
+	route6 := &route.Route{
 		Prefix:         "/thud",
 		Method:         "GET",
 		RelativePath:   "/thud/bar",
@@ -78,19 +78,19 @@ func TestRouteParsing(t *testing.T) {
 		FixedPath:      "/bar",
 	}
 
-	domainRoute1 := route.DomainRoute{
+	domainRoute1 := &route.DomainRoute{
 		Domain:      "www.example.com",
 		ProxyTarget: "https://dummy.com",
 	}
 
-	domainRoute2 := route.DomainRoute{
+	domainRoute2 := &route.DomainRoute{
 		Domain:      "www.test.com",
 		ProxyTarget: "https://tower.com",
 	}
 
-	expectedRoutes := []route.Route{route1, route2, route3, route4, route5, route6}
+	expectedRoutes := []*route.Route{route1, route2, route3, route4, route5, route6}
 
-	expectedDomainRoutes := []route.DomainRoute{domainRoute1, domainRoute2}
+	expectedDomainRoutes := []*route.DomainRoute{domainRoute1, domainRoute2}
 
 	for idx, expected := range expectedRoutes {
 		actual := rr.Routes[idx]
@@ -127,6 +127,5 @@ func TestMiddlewareParsing(t *testing.T) {
 		if len(dr.Middleware) != expectedDomainMiddleware[idx] {
 			t.Errorf("middleware number is not correct:\nExpected: %+v\nActual: %+v", len(dr.Middleware), expectedDomainMiddleware[idx])
 		}
-
 	}
 }

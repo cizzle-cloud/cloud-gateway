@@ -1,10 +1,12 @@
 package router
 
 import (
+	"fmt"
 	"net/http"
 
-	"github.com/cizzle-cloud/cloud-gateway/internal/middleware"
 	"github.com/gin-gonic/gin"
+
+	"github.com/cizzle-cloud/cloud-gateway/internal/middleware"
 )
 
 type GinRouter struct {
@@ -14,7 +16,9 @@ type GinRouter struct {
 func NewGinRouter(ginMode string, trustedProxies []string) *GinRouter {
 	gin.SetMode(ginMode)
 	engine := gin.Default()
-	engine.SetTrustedProxies(trustedProxies)
+	if err := engine.SetTrustedProxies(trustedProxies); err != nil {
+		panic(fmt.Sprintf("invalid trusted proxies: %v", err))
+	}
 	return &GinRouter{engine: engine}
 }
 
@@ -40,10 +44,10 @@ func (gr *GinRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	gr.engine.ServeHTTP(w, r)
 }
 
-func (gr *GinRouter) Run(addr string) {
-	gr.engine.Run(addr)
+func (gr *GinRouter) Run(addr string) error {
+	return gr.engine.Run(addr)
 }
 
-func (gr *GinRouter) RunTLS(addr, certFile, keyFile string) {
-	gr.engine.RunTLS(addr, certFile, keyFile)
+func (gr *GinRouter) RunTLS(addr, certFile, keyFile string) error {
+	return gr.engine.RunTLS(addr, certFile, keyFile)
 }

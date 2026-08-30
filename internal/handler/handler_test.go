@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -73,7 +74,7 @@ func TestRedirectHandler(t *testing.T) {
 
 			client := &http.Client{}
 
-			req, err := http.NewRequest(tt.Method, redirectServer.URL, bytes.NewBuffer([]byte(tt.Body)))
+			req, err := http.NewRequestWithContext(context.Background(), tt.Method, redirectServer.URL, bytes.NewBuffer([]byte(tt.Body)))
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -9,15 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cizzle-cloud/cloud-gateway/internal/errors"
 	"gopkg.in/yaml.v3"
+
+	"github.com/cizzle-cloud/cloud-gateway/internal/errors"
 )
 
 type MiddlewareGroupConfig []string
 
 type RateLimitConfig struct {
 	Algorithm       string        `json:"algorithm" yaml:"algorithm"`
-	Ttl             time.Duration `json:"ttl" yaml:"ttl"`
+	TTL             time.Duration `json:"ttl" yaml:"ttl"`
 	CleanupInterval time.Duration `json:"cleanup_interval" yaml:"cleanup_interval"`
 
 	Limit      int           `json:"limit" yaml:"limit"`
@@ -64,7 +65,7 @@ type DomainRouteConfig struct {
 }
 
 type ForwardAuthConfig struct {
-	Url                  string        `json:"url" yaml:"url"`
+	URL                  string        `json:"url" yaml:"url"`
 	Method               string        `json:"method" yaml:"method"`
 	Timeout              time.Duration `json:"timeout" yaml:"timeout"`
 	TrustForwardHeader   bool          `json:"trust_forward_header" yaml:"trust_forward_header"`
@@ -157,6 +158,21 @@ func (cfg *RouteConfig) validate() string {
 		return "prefix is missing for base route"
 	}
 
+	for _, validate := range []func() string{
+		cfg.validateBaseTarget,
+		cfg.validatePaths,
+		cfg.validatePathTargets,
+		cfg.validateMethods,
+	} {
+		if errString := validate(); errString != "" {
+			return errString
+		}
+	}
+
+	return ""
+}
+
+func (cfg *RouteConfig) validateBaseTarget() string {
 	if cfg.ProxyTarget != "" {
 		if cfg.RedirectTarget != "" {
 			return "base route with both 'proxy_target' and 'redirect_target' defined is not allowed"
@@ -174,12 +190,14 @@ func (cfg *RouteConfig) validate() string {
 		if !isValidRedirectCode(cfg.RedirectCode) {
 			return fmt.Sprintf("invalid 'redirect_code' %d for base route", cfg.RedirectCode)
 		}
-	} else {
-		if cfg.RedirectTarget != "" {
-			return "defining 'redirect_target' in base route without defining 'redirect_code' is not allowed"
-		}
+	} else if cfg.RedirectTarget != "" {
+		return "defining 'redirect_target' in base route without defining 'redirect_code' is not allowed"
 	}
 
+	return ""
+}
+
+func (cfg *RouteConfig) validatePaths() string {
 	for _, pathCfg := range cfg.Paths {
 		if pathCfg.ProxyTarget != "" {
 			if pathCfg.RedirectTarget != "" {
@@ -206,36 +224,43 @@ func (cfg *RouteConfig) validate() string {
 		}
 	}
 
-	if cfg.ProxyTarget == "" && cfg.RedirectTarget == "" {
-		if len(cfg.Paths) == 0 {
-			return "'proxy_target' or 'redirect_target' url is missing for route with no paths"
+	return ""
+}
+
+func (cfg *RouteConfig) validatePathTargets() string {
+	if cfg.ProxyTarget != "" || cfg.RedirectTarget != "" {
+		return ""
+	}
+
+	if len(cfg.Paths) == 0 {
+		return "'proxy_target' or 'redirect_target' url is missing for route with no paths"
+	}
+
+	if cfg.RedirectCode != 0 {
+		return "defining 'redirect_code' in base route that has paths is not allowed"
+	}
+
+	for _, pathCfg := range cfg.Paths {
+		if pathCfg.ProxyTarget == "" && pathCfg.RedirectTarget == "" {
+			return "found base route with path route that have both no 'proxy_target' or 'redirect_target' defined"
 		}
 
-		if cfg.RedirectCode != 0 {
-			return "defining 'redirect_code' in base route that has paths is not allowed"
-		}
-
-		for _, pathCfg := range cfg.Paths {
-			if pathCfg.ProxyTarget == "" && pathCfg.RedirectTarget == "" {
-				return "found base route with path route that have both no 'proxy_target' or 'redirect_target' defined"
+		if pathCfg.RedirectCode != 0 {
+			if pathCfg.RedirectTarget == "" {
+				return "'redirect_code' defined without a corresponding 'redirect_target' in path route"
 			}
-
-			if pathCfg.RedirectCode != 0 {
-				if pathCfg.RedirectTarget == "" {
-					return "'redirect_code' defined without a corresponding 'redirect_target' in path route"
-				}
-				if !isValidRedirectCode(pathCfg.RedirectCode) {
-					return fmt.Sprintf("invalid 'redirect_code' %d for path route", pathCfg.RedirectCode)
-				}
-			} else {
-				if pathCfg.RedirectTarget != "" {
-					return "defining 'redirect_target' in path route without defining 'redirect_code' is not allowed"
-				}
+			if !isValidRedirectCode(pathCfg.RedirectCode) {
+				return fmt.Sprintf("invalid 'redirect_code' %d for path route", pathCfg.RedirectCode)
 			}
-
+		} else if pathCfg.RedirectTarget != "" {
+			return "defining 'redirect_target' in path route without defining 'redirect_code' is not allowed"
 		}
 	}
 
+	return ""
+}
+
+func (cfg *RouteConfig) validateMethods() string {
 	if len(cfg.Paths) == 0 && cfg.Method == "" && cfg.Prefix != "" && cfg.Prefix != "/" {
 		return "http method is missing for a route with no paths"
 	}
@@ -249,20 +274,20 @@ func (cfg *RouteConfig) validate() string {
 				return "http method should not be specified both at route and path level"
 			}
 		}
+
+		return ""
 	}
 
-	if cfg.Method == "" {
-		for _, pathCfg := range cfg.Paths {
-			if pathCfg.Method == "" {
-				return fmt.Sprintf(
-					"path '%s' has no http method and its base route also has no method",
-					pathCfg.Path,
-				)
-			}
+	for _, pathCfg := range cfg.Paths {
+		if pathCfg.Method == "" {
+			return fmt.Sprintf(
+				"path '%s' has no http method and its base route also has no method",
+				pathCfg.Path,
+			)
+		}
 
-			if !isValidMethod(pathCfg.Method) {
-				return fmt.Sprintf("found invalid http method '%s' in a route path", pathCfg.Method)
-			}
+		if !isValidMethod(pathCfg.Method) {
+			return fmt.Sprintf("found invalid http method '%s' in a route path", pathCfg.Method)
 		}
 	}
 
@@ -282,7 +307,7 @@ func (cfg *DomainRouteConfig) validate() string {
 }
 
 func (cfg *RateLimitConfig) validate() string {
-	if cfg.Ttl <= 0 {
+	if cfg.TTL <= 0 {
 		return "'ttl' must be a must be a positive duration (e.g., '1h', '30m')"
 	}
 
@@ -290,7 +315,7 @@ func (cfg *RateLimitConfig) validate() string {
 		return "'cleanup_interval' must be a positive duration (e.g., '30m', '1h')"
 	}
 
-	if cfg.CleanupInterval > cfg.Ttl {
+	if cfg.CleanupInterval > cfg.TTL {
 		return "'cleanup_interval' cannot be longer than 'ttl' (records would expire before cleanup)"
 	}
 
@@ -336,7 +361,7 @@ func (cfg *RateLimitConfig) validate() string {
 }
 
 func (cfg *ForwardAuthConfig) validate() string {
-	if cfg.Url == "" {
+	if cfg.URL == "" {
 		return "required field 'url' is missing for forward auth middleware"
 	}
 
@@ -421,7 +446,7 @@ func (cfg *EnvConfig) setDefaults() {
 func loadEnvVar(key string, errorMsgs *[]string) string {
 	value := os.Getenv(key)
 	if value == "" {
-		*errorMsgs = append(*errorMsgs, fmt.Sprintf("%s is not set", key))
+		*errorMsgs = append(*errorMsgs, key+" is not set")
 	}
 	return value
 }
@@ -447,7 +472,7 @@ func LoadEnv() (Env, errors.ErrorHandler) {
 	return Env{ConfigFilepath: configFilepath, ConfigFileType: fileType}, nil
 }
 
-func LoadConfig(filepath, fileType string) (*Config, errors.ErrorHandler) {
+func LoadConfig(filePath, fileType string) (*Config, errors.ErrorHandler) {
 	var errorMsgs []string
 
 	if len(errorMsgs) > 0 {
@@ -456,7 +481,7 @@ func LoadConfig(filepath, fileType string) (*Config, errors.ErrorHandler) {
 		}
 	}
 
-	file, err := os.ReadFile(filepath)
+	file, err := os.ReadFile(filePath)
 	if err != nil {
 		return &Config{}, &errors.LoadConfigError{
 			Message: fmt.Sprintf("error while reading config file: %v", err),

@@ -7,12 +7,13 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-type Handler interface {
-}
+type Handler interface{}
 
-type HTTPFunc = func(HTTPHandler) HTTPHandler
-type WSFunc = func(WSHandler) WSHandler
-type GRPCFunc = func(GRPCHandler) GRPCHandler
+type (
+	HTTPFunc = func(HTTPHandler) HTTPHandler
+	WSFunc   = func(WSHandler) WSHandler
+	GRPCFunc = func(GRPCHandler) GRPCHandler
+)
 
 type HTTPHandler interface {
 	Handler

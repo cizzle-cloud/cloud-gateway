@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -33,26 +34,26 @@ func ProxyRequest(target, targetPath string) http.Handler {
 			// Forward original host
 			req.Header.Set("X-Forwarded-Host", r.Host)
 
-			log.Printf("[PROXY] Forwarding request to %s at %s\n", req.URL, time.Now())
-			log.Printf("[PROXY] X-Forwarded-Host: %s", req.Header.Get("X-Forwarded-Host"))
+			log.Printf("[PROXY] Forwarding request to %q at %s\n", sanitizeLogValue(req.URL.String()), time.Now())
+			log.Printf("[PROXY] X-Forwarded-Host: %q", sanitizeLogValue(req.Header.Get("X-Forwarded-Host")))
 		}
 
-		log.Printf("[PROXY] Request received at %s at %s\n", r.URL, time.Now())
-		log.Printf("[PROXY] Target URL: %s", targetURL)
+		log.Printf("[PROXY] Request received at %q at %s\n", sanitizeLogValue(r.URL.String()), time.Now())
+		log.Printf("[PROXY] Target URL: %q", sanitizeLogValue(targetURL.String()))
 
 		proxy.ServeHTTP(w, r)
 	})
 }
 
-// Redirect creates an HTTP handler that redirects to the specified url with the given status code
-func Redirect(url string, code int) http.Handler {
+// Redirect creates an HTTP handler that redirects to the specified URL with the given status code
+func Redirect(redirectURL string, code int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, url, code)
+		http.Redirect(w, r, redirectURL, code)
 	})
 }
 
 // ProxyDomain creates an HTTP handler that routes requests based on  domain configuration
-func ProxyDomain(routes []route.DomainRoute) http.Handler {
+func ProxyDomain(routes []*route.DomainRoute) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		targetDomain := strings.Split(r.Host, ":")[0]
 		reqPath := r.URL.Path
@@ -91,5 +92,9 @@ func ProxyDomain(routes []route.DomainRoute) http.Handler {
 		}
 		response.WriteJSONError(w, http.StatusNotFound, "no backend found for domain")
 	})
+}
 
+// sanitizeLogValue returns a quoted, escaped form of value suitable for safe logging.
+func sanitizeLogValue(value string) string {
+	return fmt.Sprintf("%q", strings.ReplaceAll(strings.ReplaceAll(value, "\r", "\\r"), "\n", "\\n"))
 }

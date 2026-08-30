@@ -70,7 +70,7 @@ func TestContext_isTrustedProxy(t *testing.T) {
 		t.Fatalf("failed to create context: %v", err)
 	}
 
-	cNoProxies, _ := NewContext(nil, nil)
+	cNoProxies, err := NewContext(nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create no proxies context: %v", err)
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/cizzle-cloud/cloud-gateway/internal/config"
 	"github.com/cizzle-cloud/cloud-gateway/internal/registry"
@@ -30,10 +31,13 @@ func main() {
 	certFilepath := cfg.Env.CertFilepath
 	keyFilepath := cfg.Env.KeyFilepath
 	if certFilepath == "" || keyFilepath == "" {
-		httpRouter.Run(addr)
-	} else {
-
-		httpRouter.RunTLS(addr, certFilepath, keyFilepath)
+		if err := httpRouter.Run(addr); err != nil {
+			log.Fatalf("[ERROR] failed to run HTTP server: %v", err)
+		}
+		return
 	}
 
+	if runErr := httpRouter.RunTLS(addr, certFilepath, keyFilepath); runErr != nil {
+		log.Fatalf("[ERROR] failed to run HTTPS server: %v", runErr)
+	}
 }
