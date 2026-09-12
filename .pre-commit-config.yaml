@@ -1,16 +1,27 @@
 repos:
-  - repo: https://github.com/golangci/golangci-lint
-    rev: v2.13.2
-    hooks:
-      # Run on the whole module (not just changed files) so cross-file
-      # linters like `unused` and `goconst` behave correctly.
-      - id: golangci-lint-full
-      # Ensure the golangci-lint configuration stays valid.
-      - id: golangci-lint-config-verify
-  # Run the whole test suite (not just changed files) since cross-package
-  # behavior can be affected by anything in the module.
   - repo: local
     hooks:
+      # golangci-lint is invoked via the system binary (built with go1.27+)
+      # because the golangci/golangci-lint repo hook builds with an older
+      # toolchain than the module's go 1.27.1. Requires golangci-lint on PATH.
+      - id: golangci-lint-full
+        name: golangci-lint-full
+        # Run on the whole module (not just changed files) so cross-file
+        # linters like `unused` and `goconst` behave correctly.
+        entry: golangci-lint run --fix
+        language: system
+        require_serial: true
+        pass_filenames: false
+        types: [go]
+      - id: golangci-lint-config-verify
+        name: golangci-lint-config-verify
+        # Ensure the golangci-lint configuration stays valid.
+        entry: golangci-lint config verify
+        language: system
+        pass_filenames: false
+        files: '\.golangci\.(?:yml|yaml|toml|json)'
+      # Run the whole test suite (not just changed files) since cross-package
+      # behavior can be affected by anything in the module.
       - id: go-test
         name: go test
         entry: go test -p=1 ./...

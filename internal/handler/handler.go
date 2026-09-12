@@ -22,20 +22,22 @@ func ProxyRequest(target, targetPath string) http.Handler {
 			return
 		}
 
-		proxy := httputil.NewSingleHostReverseProxy(targetURL)
+		proxy := &httputil.ReverseProxy{
+			Rewrite: func(pr *httputil.ProxyRequest) {
+				req := pr.Out
 
-		proxy.Director = func(req *http.Request) {
-			// Modify request parameters
-			req.URL.Path = targetURL.Path + targetPath
-			req.Host = targetURL.Host
-			req.URL.Host = targetURL.Host
-			req.URL.Scheme = targetURL.Scheme
+				// Modify request parameters
+				req.URL.Path = targetURL.Path + targetPath
+				req.Host = targetURL.Host
+				req.URL.Host = targetURL.Host
+				req.URL.Scheme = targetURL.Scheme
 
-			// Forward original host
-			req.Header.Set("X-Forwarded-Host", r.Host)
+				// Forward original host
+				req.Header.Set("X-Forwarded-Host", pr.In.Host)
 
-			log.Printf("[PROXY] Forwarding request to %q at %s\n", sanitizeLogValue(req.URL.String()), time.Now())
-			log.Printf("[PROXY] X-Forwarded-Host: %q", sanitizeLogValue(req.Header.Get("X-Forwarded-Host")))
+				log.Printf("[PROXY] Forwarding request to %q at %s\n", sanitizeLogValue(req.URL.String()), time.Now())
+				log.Printf("[PROXY] X-Forwarded-Host: %q", sanitizeLogValue(req.Header.Get("X-Forwarded-Host")))
+			},
 		}
 
 		log.Printf("[PROXY] Request received at %q at %s\n", sanitizeLogValue(r.URL.String()), time.Now())
